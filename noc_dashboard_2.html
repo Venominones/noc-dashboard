@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOC — No Other Choice · fr183</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --gold:     #C9A84C;
+    --gold-dim: #7A6130;
+    --red:      #C0392B;
+    --red-dim:  #7B241C;
+    --blue:     #2E86AB;
+    --bg0:      #0D0F14;
+    --bg1:      #13161E;
+    --bg2:      #1A1E2A;
+    --bg3:      #222737;
+    --border:   #2E3447;
+    --text:     #E8E4D9;
+    --text-dim: #7A8099;
+    --green:    #27AE60;
+    --orange:   #E67E22;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg0);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(180deg, #0A0C10 0%, var(--bg1) 100%);
+    border-bottom: 1px solid var(--gold-dim);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .header-left { display: flex; align-items: center; gap: 20px; }
+  .emblem {
+    width: 52px; height: 52px;
+    background: radial-gradient(circle, var(--gold) 0%, var(--gold-dim) 60%, transparent 100%);
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 20px rgba(201,168,76,0.3);
+  }
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .subtitle { color: var(--text-dim); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  .header-meta { text-align: right; }
+  .last-update { color: var(--text-dim); font-size: 11px; }
+  .world-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+  }
+
+  /* ── LAYOUT ── */
+  main { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── KPI STRIP ── */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold);
+    opacity: 0.4;
+  }
+  .kpi.attack::before  { background: var(--red); opacity: 0.7; }
+  .kpi.defense::before { background: var(--blue); opacity: 0.7; }
+  .kpi.fight::before   { background: var(--orange); opacity: 0.7; }
+  .kpi.towns::before   { background: var(--green); opacity: 0.7; }
+
+  .kpi-label { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .kpi-value { font-family: 'Cinzel', serif; font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub   { margin-top: 4px; font-size: 11px; color: var(--text-dim); }
+  .kpi-delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
+  .kpi-delta.up   { color: var(--green); }
+  .kpi-delta.down { color: var(--red); }
+
+  /* ── GRID 2 COLS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .card-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .card-body { padding: 16px 20px; }
+
+  /* ── TABLE MEMBRES ── */
+  .member-table { width: 100%; border-collapse: collapse; }
+  .member-table th {
+    text-align: left;
+    padding: 6px 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .member-table th.r { text-align: right; }
+  .member-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(46,52,71,0.5);
+    font-size: 13px;
+  }
+  .member-table td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .member-table tr:last-child td { border-bottom: none; }
+  .member-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: var(--bg3);
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .rank-badge.top1 { background: rgba(201,168,76,0.2); color: var(--gold); }
+  .rank-badge.top3 { background: rgba(201,168,76,0.1); color: #B8A060; }
+  .name-cell { font-weight: 500; }
+  .pts { font-variant-numeric: tabular-nums; }
+  .delta-pos { color: var(--green); font-size: 11px; }
+  .delta-neg { color: var(--red); font-size: 11px; }
+  .delta-zero { color: var(--text-dim); font-size: 11px; }
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+  .bar-atk  { background: var(--red); }
+  .bar-def  { background: var(--blue); }
+  .bar-cbt  { background: var(--orange); }
+  .bar-pts  { background: var(--gold); }
+
+  /* ── TOP 5 LISTES ── */
+  .top5-list { list-style: none; }
+  .top5-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(46,52,71,0.4);
+    gap: 8px;
+  }
+  .top5-list li:last-child { border-bottom: none; }
+  .top5-medal { font-size: 18px; width: 24px; flex-shrink: 0; }
+  .top5-name  { flex: 1; font-weight: 500; font-size: 13px; }
+  .top5-val   { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--green); font-weight: 600; }
+
+  /* ── CHART CANVAS ── */
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── LOADING ── */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg0);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px;
+    z-index: 100;
+  }
+  .loader-title { font-family: 'Cinzel', serif; font-size: 18px; color: var(--gold); letter-spacing: 3px; }
+  .loader-sub   { color: var(--text-dim); font-size: 12px; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--bg3);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── ERROR ── */
+  .error-msg {
+    background: rgba(192,57,43,0.1);
+    border: 1px solid var(--red-dim);
+    border-radius: 8px;
+    padding: 16px 20px;
+    color: #E57373;
+    margin: 16px 0;
+  }
+
+  /* ── REFRESH BTN ── */
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { background: rgba(201,168,76,0.1); border-color: var(--gold); }
+
+  /* ── VERSUS STRIP ── */
+  .versus-strip {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .vs-side { }
+  .vs-side.right { text-align: right; }
+  .vs-ally-name { font-family: 'Cinzel', serif; font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .vs-ally-name.noc { color: var(--gold); }
+  .vs-ally-name.bib { color: #E74C3C; }
+  .vs-stat { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+  .vs-stat.right { justify-content: flex-end; }
+  .vs-label { color: var(--text-dim); }
+  .vs-val { font-weight: 600; }
+  .vs-divider { text-align: center; }
+  .vs-text { font-family: 'Cinzel', serif; font-size: 20px; font-weight: 900; color: var(--text-dim); }
+  .vs-rank { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .progress-bar-vs {
+    height: 6px; background: var(--bg3); border-radius: 3px; margin: 6px 0;
+    overflow: hidden; position: relative;
+  }
+  .progress-fill-noc { position: absolute; left: 0; top: 0; height: 100%; background: var(--gold); border-radius: 3px; }
+  .progress-fill-bib { position: absolute; right: 0; top: 0; height: 100%; background: #E74C3C; border-radius: 3px; }
+
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab-btn {
+    background: var(--bg2); border: 1px solid var(--border);
+    color: var(--text-dim); padding: 7px 16px; border-radius: 6px;
+    cursor: pointer; font-size: 12px; transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  .tab-btn.active { background: var(--bg3); border-color: var(--gold-dim); color: var(--gold); }
+  .tab-btn:hover:not(.active) { border-color: var(--border); color: var(--text); }
+
+  .section-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 20px 0 10px;
+  }
+
+  /* ── TOTAL COMBAT ── */
+  .combat-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+  }
+  .combat-total-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .combat-total-val {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Cinzel', serif;
+  }
+  .combat-total-val.atk { color: #C0392B; }
+  .combat-total-val.def { color: #2E86AB; }
+  .combat-total-val.cbt { color: var(--gold); }
+  .combat-total-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-dim);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+  }
+
+  /* ── ALLIANCE SWITCHER ── */
+  .ally-switcher {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+  .ally-switcher-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .ally-search-wrap { position: relative; }
+  .ally-search {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .ally-search:focus { border-color: var(--gold-dim); }
+  .ally-search::placeholder { color: var(--text-dim); }
+  .ally-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 280px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 999;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .ally-dropdown.open { display: block; }
+  .ally-item {
+    padding: 9px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(46,52,71,0.4);
+    transition: background 0.15s;
+  }
+  .ally-item:last-child { border-bottom: none; }
+  .ally-item:hover { background: var(--bg3); }
+  .ally-item.active { background: rgba(201,168,76,0.1); }
+  .ally-item-name { font-size: 13px; font-weight: 500; }
+  .ally-item-rank { font-size: 11px; color: var(--text-dim); }
+  .ally-item-pts  { font-size: 11px; color: var(--gold-dim); }
+  .ally-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="emblem">⚔️</div>
+  <div class="loader-title">NO OTHER CHOICE</div>
+  <div class="spinner"></div>
+  <div class="loader-sub" id="loading-status">Connexion à l'API GrepoData...</div>
+</div>
+
+<header>
+  <div class="header-left">
+    <div class="emblem">⚔️</div>
+    <div>
+      <h1>No Other Choice</h1>
+      <div class="subtitle">Dashboard Alliance · fr183</div>
+    </div>
+  </div>
+  <div class="header-meta" style="display:flex;align-items:center;gap:16px">
+    <div class="ally-switcher">
+      <span class="ally-switcher-label">👁️ Alliance</span>
+      <div class="ally-search-wrap">
+        <input class="ally-search" id="ally-search" placeholder="Rechercher une alliance..." autocomplete="off">
+        <div class="ally-dropdown" id="ally-dropdown"></div>
+      </div>
+      <div class="ally-badge" id="ally-badge">NOC</div>
+    </div>
+    <div style="text-align:right">
+      <div class="world-badge">FR183</div>
+      <div class="last-update" id="last-update" style="margin-top:6px">—</div>
+      <div class="last-update" id="countdown" style="margin-top:2px;color:var(--gold-dim)">—</div>
+      <button class="refresh-btn" onclick="loadData()" style="margin-top:8px">↺ Actualiser</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="error-zone"></div>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip" id="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-label">🏆 Points</div>
+      <div class="kpi-value" id="kpi-points">—</div>
+      <div class="kpi-sub" id="kpi-rank">Rang alliance</div>
+    </div>
+    <div class="kpi towns">
+      <div class="kpi-label">🏙️ Villes</div>
+      <div class="kpi-value" id="kpi-villes">—</div>
+      <div class="kpi-sub" id="kpi-members">— membres</div>
+    </div>
+    <div class="kpi attack">
+      <div class="kpi-label">⚔️ Attaque</div>
+      <div class="kpi-value" id="kpi-atk">—</div>
+    </div>
+    <div class="kpi defense">
+      <div class="kpi-label">🛡️ Défense</div>
+      <div class="kpi-value" id="kpi-def">—</div>
+    </div>
+    <div class="kpi fight">
+      <div class="kpi-label">🗡️ Combattants</div>
+      <div class="kpi-value" id="kpi-cbt">—</div>
+    </div>
+  </div>
+
+  <!-- VERSUS BIBIMBAP -->
+  <div class="versus-strip" id="versus-strip" style="display:none">
+    <div class="vs-side">
+      <div class="vs-ally-name noc" id="vs-noc-name">No Other Choice</div>
+      <div class="vs-stat"><span class="vs-val" id="vs-noc-pts">—</span><span class="vs-label">pts</span></div>
+      <div class="vs-stat"><span class="vs-val" id="vs-noc-towns">—</span><span class="vs-label">villes</span></div>
+      <div class="vs-rank" id="vs-noc-rank">—</div>
+    </div>
+    <div class="vs-divider">
+      <div class="vs-text">VS</div>
+      <div class="progress-bar-vs" style="width:120px;margin:8px auto">
+        <div class="progress-fill-noc" id="vs-bar-noc"></div>
+        <div class="progress-fill-bib" id="vs-bar-bib"></div>
+      </div>
+    </div>
+    <div class="vs-side right">
+      <div class="vs-ally-name bib" id="vs-opp-name">Bibimbap</div>
+      <div class="vs-stat right"><span class="vs-label">pts</span><span class="vs-val" id="vs-bib-pts">—</span></div>
+      <div class="vs-stat right"><span class="vs-label">villes</span><span class="vs-val" id="vs-bib-towns">—</span></div>
+      <div class="vs-rank" id="vs-bib-rank">—</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('membres')">👥 Membres</button>
+    <button class="tab-btn" onclick="showTab('combat')">⚔️ Combat</button>
+    <button class="tab-btn" onclick="showTab('top5')">🏆 Top 5</button>
+    <button class="tab-btn" onclick="showTab('historique')">📈 Historique</button>
+  </div>
+
+  <!-- TAB MEMBRES -->
+  <div id="tab-membres">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Classement interne</span>
+        <span class="card-badge" id="badge-membres">0 membres</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="member-table" id="table-membres">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Joueur</th>
+              <th class="r">Points</th>
+              <th class="r">Villes</th>
+              <th class="r">Rang 🌍</th>
+              <th class="r" id="th-delta">Δ 24H</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-membres"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB COMBAT -->
+  <div id="tab-combat" style="display:none">
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚔️ Attaque</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="combat-total" id="total-atk">
+            <div>
+              <div class="combat-total-label">Total Attaque</div>
+              <div class="combat-total-val atk" id="total-atk-val">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="combat-total-label">Rang alliance</div>
+              <div class="combat-total-sub" id="total-atk-rank">—</div>
+            </div>
+          </div>
+          <table class="member-table" id="table-atk">
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
+            <tbody id="tbody-atk"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🛡️ Défense</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="combat-total" id="total-def">
+            <div>
+              <div class="combat-total-label">Total Défense</div>
+              <div class="combat-total-val def" id="total-def-val">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="combat-total-label">Rang alliance</div>
+              <div class="combat-total-sub" id="total-def-rank">—</div>
+            </div>
+          </div>
+          <table class="member-table" id="table-def">
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
+            <tbody id="tbody-def"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🗡️ Combattants</span></div>
+        <div class="card-body" style="padding:0">
+          <table class="member-table" id="table-cbt">
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
+            <tbody id="tbody-cbt"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB TOP5 -->
+  <div id="tab-top5" style="display:none">
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚔️ Top 5 Attaque</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-atk"></ul></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🛡️ Top 5 Défense</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-def"></ul></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🗡️ Top 5 Combattants</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-cbt"></ul></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">🏆 Top Points</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-pts"></ul></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🏙️ Top Villes</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-villes"></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB HISTORIQUE -->
+  <div id="tab-historique" style="display:none">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">📈 Points alliance</span></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-points"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚔️ Attaque + Défense</span></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-combat"></canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📊 Progression individuelle</span>
+        <span class="card-badge" id="hist-info">Données stockées localement</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="member-table" id="table-hist">
+          <thead>
+            <tr>
+              <th>Joueur</th>
+              <th class="r">Pts actuels</th>
+              <th class="r">Δ aujourd'hui</th>
+              <th class="r">Δ 7 jours</th>
+              <th class="r">Tendance</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-hist"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  NOC Dashboard · Données en direct via <a href="https://grepodata.com" target="_blank" style="color:var(--gold-dim)">GrepoData</a> · fr183
+</footer>
+
+<script>
+const API     = 'https://api.grepodata.com';
+const WORLD   = 'fr183';
+
+// Alliance active — dynamique
+let ACTIVE_ALLY = { id: 2, name: 'No Other Choice' };
+let ALL_ALLIANCES = [];
+const NOC       = { id: 2,  name: 'No Other Choice' };
+const BIBIMBAP  = { id: 22, name: 'Bibimbap' };
+
+// Retourne l'adversaire à afficher dans le VS strip
+function getOpponent() {
+  return ACTIVE_ALLY.id === NOC.id ? BIBIMBAP : NOC;
+}
+
+let members = [];
+let bibimbap = null;
+let historyData = [];
+
+function getHistKey() { return 'noc_hist_' + ACTIVE_ALLY.id; }
+function loadHistoryData() {
+  historyData = JSON.parse(localStorage.getItem(getHistKey()) || '[]');
+}
+
+const MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+function fmt(n) { return Number(n||0).toLocaleString('fr-FR'); }
+function sign(n) { return n >= 0 ? '+' + fmt(n) : fmt(n); }
+
+async function apiFetch(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`API ${path} → ${r.status}`);
+  return r.json();
+}
+
+function showTab(name) {
+  ['membres','combat','top5','historique'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    const tabs = ['membres','combat','top5','historique'];
+    btn.classList.toggle('active', tabs[i] === name);
+  });
+  if (name === 'historique') renderHistorique();
+  // Si l'onglet historique est actif au moment du refresh, on le re-render aussi
+  window._activeTab = name;
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('loading-status');
+  if (el) el.textContent = msg;
+}
+
+
+// ─── AUTO-REFRESH ───
+const REFRESH_INTERVAL = 5 * 60 * 1000;
+let refreshTimer = null;
+let countdownTimer = null;
+let nextRefresh = Date.now() + REFRESH_INTERVAL;
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (countdownTimer) clearInterval(countdownTimer);
+  nextRefresh = Date.now() + REFRESH_INTERVAL;
+  refreshTimer = setInterval(() => {
+    nextRefresh = Date.now() + REFRESH_INTERVAL;
+    loadData();
+  }, REFRESH_INTERVAL);
+  countdownTimer = setInterval(() => {
+    const remaining = Math.max(0, Math.round((nextRefresh - Date.now()) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const el = document.getElementById('countdown');
+    if (el) el.textContent = 'Prochain refresh dans ' + mins + ':' + String(secs).padStart(2,'0');
+  }, 1000);
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('error-zone').innerHTML = '';
+
+  try {
+    setStatus('Chargement des membres...');
+    const [membersResp, rankingResp, allyResp] = await Promise.all([
+      apiFetch(`/alliance/members?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
+      apiFetch(`/ranking/player?world=${WORLD}`),
+      apiFetch(`/alliance/info?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
+    ]);
+
+    setStatus('Traitement des données...');
+
+    // Build ranking map
+    const rankMap = {};
+    const rankList = Array.isArray(rankingResp) ? rankingResp :
+                     rankingResp?.results || rankingResp?.players || rankingResp?.ranking || [];
+    rankList.forEach(p => { if (p.name || p.player_name) rankMap[p.name || p.player_name] = p; });
+
+    // Parse members
+    const rawList = Array.isArray(membersResp) ? membersResp :
+                    membersResp?.results || membersResp?.members || membersResp?.players || [];
+
+    members = rawList.map(m => {
+      const name = m.name || m.player_name || '';
+      const rk   = rankMap[name] || {};
+      return {
+        nom:    name,
+        rang:   parseInt(m.rank || m.ranking || 0),
+        points: parseInt(m.points || 0),
+        villes: parseInt(m.towns || m.town_count || 0),
+        atk:    parseInt(m.att || 0),
+        atk_r:  parseInt(m.att_rank || 0),
+        def:    parseInt(m.def || 0),
+        def_r:  parseInt(m.def_rank || 0),
+        cbt:    parseInt(m.att||0) + parseInt(m.def||0),
+        history: Array.isArray(m.history) ? m.history : [],
+      };
+    }).filter(m => m.nom && m.points > 0);
+
+    // Alliance info
+    const allyInfo = allyResp?.alliance || allyResp || {};
+
+    // Cherche Bibimbap dans le ranking alliances
+    try {
+      setStatus('Chargement du comparatif...');
+      const allyRank = await apiFetch(`/ranking/alliance?world=${WORLD}`);
+      const allyList = Array.isArray(allyRank) ? allyRank :
+                       allyRank?.results || allyRank?.alliances || [];
+      bibimbap = allyList.find(a => (a.name||'').toLowerCase().includes('bibimbap'));
+    } catch(e) { bibimbap = null; }
+
+    // Historique — recharge pour cette alliance spécifique
+    loadHistoryData();
+    saveHistory(members);
+
+    // Render
+    renderKPIs(members, allyInfo);
+    renderVersus(members, allyInfo, ALL_ALLIANCES);
+    renderMembres(members);
+    renderCombat(members);
+    renderTop5(members);
+    // Si l'onglet historique est affiché, le rafraîchir aussi
+    if (window._activeTab === 'historique') renderHistorique();
+
+    document.getElementById('last-update').textContent =
+      'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
+    startAutoRefresh();
+    document.getElementById('loading').style.display = 'none';
+
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-zone').innerHTML =
+      `<div class="error-msg">❌ Erreur de chargement : ${e.message}<br>
+       Vérifie ta connexion ou réessaie dans quelques secondes.</div>`;
+  }
+}
+
+function saveHistory(members) {
+  const now   = Date.now();
+  const date  = new Date(now).toISOString().split('T')[0];
+  // Clé heure : "2026-06-23T06" → 1 snap max par heure pour le graphe long terme
+  const hourKey = new Date(now).toISOString().slice(0, 13);
+
+  const snap = {
+    date      : date,
+    hourKey   : hourKey,
+    ts        : now,
+    total_pts : members.reduce((s,m) => s+m.points, 0),
+    total_atk : members.reduce((s,m) => s+m.atk, 0),
+    total_def : members.reduce((s,m) => s+m.def, 0),
+    members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
+  };
+
+  // Purge les snapshots corrompus (ts=0 ou pts=0)
+  const existing = historyData.filter(h => {
+    return parseInt(h.ts || 0) > 1700000000000 && parseInt(h.total_pts || 0) > 0;
+  });
+
+  // Stratégie de stockage :
+  // - snapshots < 24h : on garde TOUS (refresh 5min = delta live)
+  // - snapshots > 24h : on garde 1 par heure (économise de la place)
+  const cutoff24h = now - 24 * 3600 * 1000;
+
+  const recent   = existing.filter(h => h.ts >= cutoff24h);
+  const old      = existing.filter(h => h.ts <  cutoff24h);
+
+  // Pour les vieux snaps : garde 1 par heure (le premier de chaque heure)
+  const oldByHour = {};
+  old.forEach(h => {
+    const hk = h.hourKey || new Date(h.ts).toISOString().slice(0, 13);
+    if (!oldByHour[hk]) oldByHour[hk] = h;  // garde le premier
+  });
+
+  // Ajoute le snap actuel aux récents
+  recent.push(snap);
+
+  historyData = [
+    ...Object.values(oldByHour).sort((a,b) => a.ts - b.ts).slice(-30*24), // max 30j d'historique
+    ...recent
+  ];
+
+  localStorage.setItem(getHistKey(), JSON.stringify(historyData));
+}
+
+function renderKPIs(members, info) {
+  const totPts = members.reduce((s,m) => s+m.points, 0);
+  const totVil = members.reduce((s,m) => s+m.villes, 0);
+  const totAtk = members.reduce((s,m) => s+m.atk, 0);
+  const totDef = members.reduce((s,m) => s+m.def, 0);
+  const totCbt = members.reduce((s,m) => s+m.cbt, 0);
+
+  document.getElementById('kpi-points').textContent = fmt(totPts);
+  document.getElementById('kpi-villes').textContent = totVil;
+  document.getElementById('kpi-members').textContent = members.length + ' membres';
+  document.getElementById('kpi-rank').textContent = info.rank ? '#' + info.rank + ' mondial' : '';
+  // Met à jour le titre avec l'alliance active
+  document.querySelector('h1').textContent = ACTIVE_ALLY.name;
+  document.getElementById('kpi-atk').textContent = fmt(totAtk);
+  document.getElementById('kpi-def').textContent = fmt(totDef);
+  document.getElementById('kpi-cbt').textContent = fmt(totCbt);
+}
+
+function renderVersus(members, allyInfo, allAllyList) {
+  const activePts   = members.reduce((s,m) => s+m.points, 0);
+  const activeTowns = members.reduce((s,m) => s+m.villes, 0);
+
+  // Détermine l'adversaire : si on regarde NOC → Bibimbap, sinon → NOC
+  let opponent = null;
+  if (ACTIVE_ALLY.id === 2) {
+    // On regarde NOC → cherche Bibimbap
+    opponent = (allAllyList||[]).find(a => (a.name||'').toLowerCase().includes('bibimbap'));
+  } else {
+    // On regarde autre alliance → cherche NOC (#2)
+    opponent = (allAllyList||[]).find(a => a.id === 2);
+  }
+
+  if (!opponent) { document.getElementById('versus-strip').style.display = 'none'; return; }
+
+  const oppPts   = parseInt(opponent.points || 0);
+  const oppTowns = parseInt(opponent.towns || opponent.town_count || 0);
+  const total    = activePts + oppPts;
+  const actPct   = total > 0 ? Math.round(activePts / total * 100) : 50;
+  const oppPct   = 100 - actPct;
+
+  document.getElementById('vs-noc-name').textContent  = ACTIVE_ALLY.name;
+  document.getElementById('vs-noc-pts').textContent   = fmt(activePts);
+  document.getElementById('vs-noc-towns').textContent = activeTowns + ' villes';
+  document.getElementById('vs-noc-rank').textContent  = allyInfo.rank ? '#' + allyInfo.rank + ' mondial' : '';
+  document.getElementById('vs-opp-name').textContent  = opponent.name;
+  document.getElementById('vs-bib-pts').textContent   = fmt(oppPts);
+  document.getElementById('vs-bib-towns').textContent = oppTowns + ' villes';
+  document.getElementById('vs-bib-rank').textContent  = opponent.rank ? '#' + opponent.rank + ' mondial' : '';
+  document.getElementById('vs-bar-noc').style.width   = actPct + '%';
+  document.getElementById('vs-bar-bib').style.width   = oppPct + '%';
+  document.getElementById('versus-strip').style.display = '';
+}
+
+function renderMembres(members) {
+  const sorted = [...members].sort((a,b) => b.points - a.points);
+  const maxPts = sorted[0]?.points || 1;
+  document.getElementById('badge-membres').textContent = members.length + ' membres';
+
+  // Met à jour le libellé de la colonne delta selon l'âge du plus vieux snap
+  const thDelta = document.getElementById('th-delta');
+  if (thDelta && historyData.length >= 2) {
+    const newest = historyData[historyData.length - 1];
+    const oldest = historyData[0];
+    const diffMs = newest.ts - oldest.ts;
+    const diffH  = Math.round(diffMs / 3600000);
+    const diffM  = Math.round(diffMs / 60000);
+    thDelta.textContent = 'Δ Aujourd\'hui';
+  }
+
+  const tbody = document.getElementById('tbody-membres');
+  tbody.innerHTML = sorted.map((m, i) => {
+    const rankCls = i === 0 ? 'top1' : i < 3 ? 'top3' : '';
+    const pct = Math.round(m.points / maxPts * 100);
+    const hist = getHistDelta(m.nom, 1);
+    const deltaHtml = hist !== null
+      ? `<span class="${hist > 0 ? 'delta-pos' : hist < 0 ? 'delta-neg' : 'delta-zero'}">${hist > 0 ? '+' : ''}${fmt(hist)}</span>`
+      : '<span class="delta-zero">—</span>';
+    return `<tr>
+      <td><span class="rank-badge ${rankCls}">${i+1}</span></td>
+      <td class="name-cell">${m.nom}</td>
+      <td class="r pts">
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill bar-pts" style="width:${pct}%"></div></div>
+          ${fmt(m.points)}
+        </div>
+      </td>
+      <td class="r">${m.villes}</td>
+      <td class="r">${m.rang > 0 ? '#' + m.rang : '—'}</td>
+      <td class="r">${deltaHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCombatTable(tbodyId, members, key, rankKey) {
+  const sorted = [...members].filter(m => m[key] > 0).sort((a,b) => b[key] - a[key]);
+  const max = sorted[0]?.[key] || 1;
+  const barClass = { atk:'bar-atk', def:'bar-def', cbt:'bar-cbt' }[key];
+  document.getElementById(tbodyId).innerHTML = sorted.map((m, i) => {
+    const pct = Math.round(m[key] / max * 100);
+    return `<tr>
+      <td><span class="rank-badge ${i<3?'top3':''}">${i+1}</span></td>
+      <td class="name-cell">${m.nom}</td>
+      <td class="r pts">
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div>
+          ${fmt(m[key])}
+        </div>
+      </td>
+      <td class="r">${m[rankKey] > 0 ? '#' + m[rankKey] : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCombat(members) {
+  renderCombatTable('tbody-atk', members, 'atk', 'atk_r');
+  renderCombatTable('tbody-def', members, 'def', 'def_r');
+  renderCombatTable('tbody-cbt', members, 'cbt', 'cbt_r');
+
+  // ── Totaux ──
+  const totAtk = members.reduce((s,m) => s + (m.atk||0), 0);
+  const totDef = members.reduce((s,m) => s + (m.def||0), 0);
+  const totCbt = totAtk + totDef;
+
+  document.getElementById('total-atk-val').textContent = fmt(totAtk);
+  document.getElementById('total-def-val').textContent = fmt(totDef);
+  document.getElementById('total-cbt-val').textContent = fmt(totCbt);
+  document.getElementById('total-cbt-sub').textContent = fmt(totAtk) + ' + ' + fmt(totDef);
+
+  // Meilleur rang individuel atk/def
+  const bestAtk = members.filter(m => m.atk_r).sort((a,b) => a.atk_r - b.atk_r)[0];
+  const bestDef = members.filter(m => m.def_r).sort((a,b) => a.def_r - b.def_r)[0];
+  document.getElementById('total-atk-rank').textContent = bestAtk ? 'Meilleur : ' + bestAtk.nom + ' #' + bestAtk.atk_r : '';
+  document.getElementById('total-def-rank').textContent = bestDef ? 'Meilleur : ' + bestDef.nom + ' #' + bestDef.def_r : '';
+}
+
+function renderTop5List(elId, members, key, label) {
+  const sorted = [...members].filter(m => m[key] > 0).sort((a,b) => b[key]-a[key]).slice(0,5);
+  document.getElementById(elId).innerHTML = sorted.map((m,i) =>
+    `<li>
+      <span class="top5-medal">${MEDALS[i]}</span>
+      <span class="top5-name">${m.nom}</span>
+      <span class="top5-val">${fmt(m[key])} ${label}</span>
+    </li>`
+  ).join('');
+}
+
+function renderTop5(members) {
+  renderTop5List('top5-atk',   members, 'atk',    'pts');
+  renderTop5List('top5-def',   members, 'def',    'pts');
+  renderTop5List('top5-cbt',   members, 'cbt',    'pts');
+  renderTop5List('top5-pts',   members, 'points', 'pts');
+  renderTop5List('top5-villes',members, 'villes', '🏙️');
+}
+
+function getSnapSinceToday() {
+  // Retourne le snap le plus vieux depuis 00h00 aujourd'hui
+  // ou le plus vieux snap dispo si rien depuis minuit
+  if (historyData.length === 0) return null;
+  const now = historyData[historyData.length - 1];
+  const midnight = new Date(now.ts);
+  midnight.setHours(0, 0, 0, 0);
+  const midnightTs = midnight.getTime();
+  // Snaps d'aujourd'hui
+  const todaySnaps = historyData.filter(h => h.ts >= midnightTs);
+  if (todaySnaps.length >= 2) return todaySnaps[0]; // premier snap d'aujourd'hui
+  // Pas assez de snaps aujourd'hui → prend le plus vieux dispo
+  return historyData.length >= 2 ? historyData[0] : null;
+}
+
+function getHistDelta(nom, days) {
+  if (historyData.length < 2) return null;
+  const nowSnap = historyData[historyData.length - 1];
+
+  let pastSnap;
+  if (days <= 1) {
+    // Δ 24H dans membres = depuis 00h00 aujourd'hui (ou plus vieux snap dispo)
+    pastSnap = getSnapSinceToday();
+  } else {
+    // Δ 7j etc. = snap il y a X jours réels
+    const cutoff = nowSnap.ts - days * 24 * 3600 * 1000;
+    const candidates = historyData.slice(0, -1).filter(h => h.ts <= cutoff);
+    pastSnap = candidates.length > 0
+      ? candidates[candidates.length - 1]
+      : historyData[0];
+  }
+
+  if (!pastSnap || pastSnap.ts === nowSnap.ts) return null;
+  const nowM  = nowSnap.members?.find(m => m.nom === nom);
+  const pastM = pastSnap.members?.find(m => m.nom === nom);
+  if (!nowM || !pastM) return null;
+  return nowM.pts - pastM.pts;
+}
+
+function renderHistorique() {
+  // Graphique points
+  if (historyData.length < 2) {
+    // Pas assez de données — affiche un message dans les canvas
+    ['chart-points', 'chart-combat'].forEach(id => {
+      const canvas = document.getElementById(id);
+      const ctx2 = canvas.getContext('2d');
+      ctx2.clearRect(0,0,canvas.width,canvas.height);
+      ctx2.fillStyle = '#7A8099';
+      ctx2.font = '13px Inter, sans-serif';
+      ctx2.textAlign = 'center';
+      ctx2.fillText('Historique insuffisant — reviens demain 📅', canvas.width/2, 110);
+    });
+    return;
+  }
+  if (historyData.length >= 2) {
+    const labels = historyData.map(h => h.date.slice(5));
+    const ptData = historyData.map(h => h.total_pts);
+    const atkData = historyData.map(h => h.total_atk);
+    const defData = historyData.map(h => h.total_def);
+
+    const ctxPts = document.getElementById('chart-points').getContext('2d');
+    if (window._chartPts) window._chartPts.destroy();
+    window._chartPts = new Chart(ctxPts, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Points ' + ACTIVE_ALLY.name,
+          data: ptData,
+          borderColor: '#C9A84C',
+          backgroundColor: 'rgba(201,168,76,0.1)',
+          fill: true, tension: 0.3, pointRadius: 3,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#E8E4D9', font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#7A8099', font: { size: 10 } }, grid: { color: '#222737' } },
+          y: { ticks: { color: '#7A8099', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#222737' } }
+        }
+      }
+    });
+
+    const ctxCbt = document.getElementById('chart-combat').getContext('2d');
+    if (window._chartCbt) window._chartCbt.destroy();
+    window._chartCbt = new Chart(ctxCbt, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Attaque', data: atkData, borderColor: '#C0392B', backgroundColor: 'rgba(192,57,43,0.1)', fill: true, tension: 0.3, pointRadius: 3 },
+          { label: 'Défense', data: defData, borderColor: '#2E86AB', backgroundColor: 'rgba(46,134,171,0.1)', fill: true, tension: 0.3, pointRadius: 3 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#E8E4D9', font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: '#7A8099', font: { size: 10 } }, grid: { color: '#222737' } },
+          y: { ticks: { color: '#7A8099', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#222737' } }
+        }
+      }
+    });
+  }
+
+
+  // Tableau progression — fenêtres temporelles réelles
+  const curr   = historyData[historyData.length - 1];
+  const currTs = curr?.ts || Date.now();
+
+  // Δ aujourd'hui : réutilise getSnapSinceToday() → cohérent avec l'onglet Membres
+  const now1d = getSnapSinceToday();
+
+  // Δ 7 jours : snap le plus proche d'il y a 7 jours, sinon le plus vieux dispo
+  const cutoff7d = currTs - 7 * 24 * 3600 * 1000;
+  const snaps7d  = historyData.filter(h => h.ts <= cutoff7d);
+  const now7d    = snaps7d.length > 0 ? snaps7d[snaps7d.length - 1] : historyData[0];
+
+  const tbody = document.getElementById('tbody-hist');
+  const sortedMembers = [...members].sort((a,b) => b.points - a.points);
+
+  tbody.innerHTML = sortedMembers.map(m => {
+    const d1  = now1d?.members?.find(x => x.nom === m.nom);
+    const d7  = now7d?.members?.find(x => x.nom === m.nom);
+    const delta1 = d1 ? m.points - d1.pts : null;
+    const delta7 = d7 ? m.points - d7.pts : null;
+
+    const d1Html = delta1 !== null ? `<span class="${delta1>0?'delta-pos':delta1<0?'delta-neg':'delta-zero'}">${delta1>0?'+':''}${fmt(delta1)}</span>` : '—';
+    const d7Html = delta7 !== null ? `<span class="${delta7>0?'delta-pos':delta7<0?'delta-neg':'delta-zero'}">${delta7>0?'+':''}${fmt(delta7)}</span>` : '—';
+
+    // Mini sparkline tendance
+    const memberHist = historyData.slice(-7).map(h => h.members?.find(x=>x.nom===m.nom)?.pts || 0);
+    const trend = memberHist.length > 1 ? (memberHist[memberHist.length-1] - memberHist[0] > 0 ? '📈' : memberHist[memberHist.length-1] - memberHist[0] < 0 ? '📉' : '➡️') : '—';
+
+    return `<tr>
+      <td class="name-cell">${m.nom}</td>
+      <td class="r">${fmt(m.points)}</td>
+      <td class="r">${d1Html}</td>
+      <td class="r">${d7Html}</td>
+      <td class="r">${trend}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('hist-info').textContent =
+    historyData.length > 0 ? `${historyData.length} snapshot${historyData.length>1?'s':''} stockés` : 'Aucun historique';
+}
+
+// loadData() appelé via auto-refresh ci-dessous
+
+// ─── ALLIANCE SWITCHER ───
+
+async function loadAllAlliances() {
+  try {
+    const data = await apiFetch(`/ranking/alliance?world=${WORLD}`);
+    const list = Array.isArray(data) ? data :
+                 data?.results || data?.alliances || [];
+    ALL_ALLIANCES = list.map(a => ({
+      id    : a.id || a.alliance_id,
+      name  : a.name || a.alliance_name || '',
+      rank  : parseInt(a.rank || 0),
+      points: parseInt(a.points || 0),
+      towns : parseInt(a.towns || 0),
+    })).filter(a => a.name).sort((a,b) => a.rank - b.rank);
+    console.log(`[NOC] ${ALL_ALLIANCES.length} alliances chargées`);
+  } catch(e) {
+    console.warn('[NOC] Impossible de charger les alliances:', e);
+  }
+}
+
+function fmt_k(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return (n/1000).toFixed(0) + 'k';
+  return String(n);
+}
+
+function renderAllyDropdown(query) {
+  const dropdown = document.getElementById('ally-dropdown');
+  if (!query && ALL_ALLIANCES.length === 0) { dropdown.classList.remove('open'); return; }
+
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? ALL_ALLIANCES.filter(a => a.name.toLowerCase().includes(q)).slice(0, 20)
+    : ALL_ALLIANCES.slice(0, 20);
+
+  if (filtered.length === 0) { dropdown.classList.remove('open'); return; }
+
+  dropdown.innerHTML = filtered.map(a => `
+    <div class="ally-item ${a.id == ACTIVE_ALLY.id ? 'active' : ''}"
+         onclick="selectAlliance(${a.id}, ${JSON.stringify(a.name).replace(/"/g,"'")})">
+      <div>
+        <div class="ally-item-name">${a.name}</div>
+        <div class="ally-item-pts">${fmt_k(a.points)} pts · ${a.towns} villes</div>
+      </div>
+      <div class="ally-item-rank">#${a.rank}</div>
+    </div>
+  `).join('');
+
+  dropdown.classList.add('open');
+}
+
+function selectAlliance(id, name) {
+  ACTIVE_ALLY = { id, name };
+  document.getElementById('ally-search').value = '';
+  document.getElementById('ally-dropdown').classList.remove('open');
+  const badge = document.getElementById('ally-badge');
+  badge.textContent = name.length > 18 ? name.slice(0, 16) + '…' : name;
+
+  // Met à jour le titre
+  document.querySelector('h1').textContent = name;
+
+  // Détruit les anciens graphes pour éviter l'affichage des données précédentes
+  if (window._chartPts) { window._chartPts.destroy(); window._chartPts = null; }
+  if (window._chartCbt) { window._chartCbt.destroy(); window._chartCbt = null; }
+
+  // Vide l'historique en mémoire avant de charger celui de la nouvelle alliance
+  historyData = [];
+  loadHistoryData();
+  // Recharge les données
+  loadData();
+}
+
+// Événements du champ de recherche
+document.addEventListener('DOMContentLoaded', () => {
+  const input    = document.getElementById('ally-search');
+  const dropdown = document.getElementById('ally-dropdown');
+
+  input.addEventListener('input', () => renderAllyDropdown(input.value));
+  input.addEventListener('focus', () => {
+    if (ALL_ALLIANCES.length > 0) renderAllyDropdown(input.value);
+  });
+
+  // Ferme le dropdown si clic ailleurs
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.ally-search-wrap')) {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  // Onglet actif par défaut
+  window._activeTab = 'membres';
+  // Charge les alliances puis les données
+  loadAllAlliances().then(() => loadData()).then(() => startAutoRefresh());
+});
+</script>
+</body>
+</html>
