@@ -1008,7 +1008,7 @@ function renderHistorique() {
       data: {
         labels,
         datasets: [{
-          label: 'Points alliance',
+          label: 'Points ' + ACTIVE_ALLY.name,
           data: ptData,
           borderColor: '#C9A84C',
           backgroundColor: 'rgba(201,168,76,0.1)',
@@ -1149,7 +1149,12 @@ function selectAlliance(id, name) {
   // Met à jour le titre
   document.querySelector('h1').textContent = name;
 
-  // Réinitialise l'historique pour la nouvelle alliance
+  // Détruit les anciens graphes pour éviter l'affichage des données précédentes
+  if (window._chartPts) { window._chartPts.destroy(); window._chartPts = null; }
+  if (window._chartCbt) { window._chartCbt.destroy(); window._chartCbt = null; }
+
+  // Vide l'historique en mémoire avant de charger celui de la nouvelle alliance
+  historyData = [];
   loadHistoryData();
   // Recharge les données
   loadData();
