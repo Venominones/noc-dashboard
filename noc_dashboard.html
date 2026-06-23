@@ -863,10 +863,16 @@ function saveHistory(members) {
     members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
   };
 
-  // Purge les snapshots corrompus (ts=0 ou pts=0)
-  const existing = historyData.filter(h => {
-    return parseInt(h.ts || 0) > 1700000000000 && parseInt(h.total_pts || 0) > 0;
-  });
+  // Purge les snapshots corrompus (ts=0 ou pts=0) ET les valeurs aberrantes
+  const validSnaps = historyData.filter(h =>
+    parseInt(h.ts || 0) > 1700000000000 && parseInt(h.total_pts || 0) > 0
+  );
+  // Calcule la médiane d'attaque pour détecter les aberrants
+  const atk_vals = validSnaps.map(h => h.total_atk).sort((a,b)=>a-b);
+  const med_atk  = atk_vals[Math.floor(atk_vals.length/2)] || 0;
+  const existing = med_atk > 0
+    ? validSnaps.filter(h => Math.abs(h.total_atk - med_atk) / med_atk < 0.25)
+    : validSnaps;
 
   // Stratégie de stockage :
   // - snapshots < 24h : on garde TOUS (refresh 5min = delta live)
