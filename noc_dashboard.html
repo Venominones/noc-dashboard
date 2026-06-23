@@ -465,7 +465,7 @@
   <!-- VERSUS BIBIMBAP -->
   <div class="versus-strip" id="versus-strip" style="display:none">
     <div class="vs-side">
-      <div class="vs-ally-name noc">No Other Choice</div>
+      <div class="vs-ally-name noc" id="vs-noc-name">No Other Choice</div>
       <div class="vs-stat"><span class="vs-val" id="vs-noc-pts">—</span><span class="vs-label">pts</span></div>
       <div class="vs-stat"><span class="vs-val" id="vs-noc-towns">—</span><span class="vs-label">villes</span></div>
       <div class="vs-rank" id="vs-noc-rank">—</div>
@@ -478,7 +478,7 @@
       </div>
     </div>
     <div class="vs-side right">
-      <div class="vs-ally-name bib">Bibimbap</div>
+      <div class="vs-ally-name bib" id="vs-opp-name">Bibimbap</div>
       <div class="vs-stat right"><span class="vs-label">pts</span><span class="vs-val" id="vs-bib-pts">—</span></div>
       <div class="vs-stat right"><span class="vs-label">villes</span><span class="vs-val" id="vs-bib-towns">—</span></div>
       <div class="vs-rank" id="vs-bib-rank">—</div>
@@ -509,7 +509,7 @@
               <th class="r">Points</th>
               <th class="r">Villes</th>
               <th class="r">Rang 🌍</th>
-              <th class="r">Progression</th>
+              <th class="r">Δ 24H</th>
             </tr>
           </thead>
           <tbody id="tbody-membres"></tbody>
@@ -593,7 +593,7 @@
     </div>
     <div class="card">
       <div class="card-header">
-        <span class="card-title">📊 Progression individuelle (7 jours)</span>
+        <span class="card-title">📊 Progression individuelle</span>
         <span class="card-badge" id="hist-info">Données stockées localement</span>
       </div>
       <div class="card-body" style="padding:0">
@@ -601,9 +601,9 @@
           <thead>
             <tr>
               <th>Joueur</th>
-              <th class="r">Pts aujourd'hui</th>
-              <th class="r">Δ 24h</th>
-              <th class="r">Δ 7j</th>
+              <th class="r">Pts actuels</th>
+              <th class="r">Δ aujourd'hui</th>
+              <th class="r">Δ 7 jours</th>
               <th class="r">Tendance</th>
             </tr>
           </thead>
@@ -622,12 +622,26 @@
 <script>
 const API     = 'https://api.grepodata.com';
 const WORLD   = 'fr183';
-const ALLY_ID = 2;
-const BIB_ID  = 1; // Bibimbap — on va chercher leur vrai ID
+
+// Alliance active — dynamique
+let ACTIVE_ALLY = { id: 2, name: 'No Other Choice' };
+let ALL_ALLIANCES = [];
+const NOC       = { id: 2,  name: 'No Other Choice' };
+const BIBIMBAP  = { id: 22, name: 'Bibimbap' };
+
+// Retourne l'adversaire à afficher dans le VS strip
+function getOpponent() {
+  return ACTIVE_ALLY.id === NOC.id ? BIBIMBAP : NOC;
+}
 
 let members = [];
 let bibimbap = null;
-let historyData = JSON.parse(localStorage.getItem('noc_hist') || '[]');
+let historyData = [];
+
+function getHistKey() { return 'noc_hist_' + ACTIVE_ALLY.id; }
+function loadHistoryData() {
+  historyData = JSON.parse(localStorage.getItem(getHistKey()) || '[]');
+}
 
 const MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
 
@@ -654,6 +668,30 @@ function showTab(name) {
 function setStatus(msg) {
   const el = document.getElementById('loading-status');
   if (el) el.textContent = msg;
+}
+
+
+// ─── AUTO-REFRESH ───
+const REFRESH_INTERVAL = 5 * 60 * 1000;
+let refreshTimer = null;
+let countdownTimer = null;
+let nextRefresh = Date.now() + REFRESH_INTERVAL;
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (countdownTimer) clearInterval(countdownTimer);
+  nextRefresh = Date.now() + REFRESH_INTERVAL;
+  refreshTimer = setInterval(() => {
+    nextRefresh = Date.now() + REFRESH_INTERVAL;
+    loadData();
+  }, REFRESH_INTERVAL);
+  countdownTimer = setInterval(() => {
+    const remaining = Math.max(0, Math.round((nextRefresh - Date.now()) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const el = document.getElementById('countdown');
+    if (el) el.textContent = 'Prochain refresh dans ' + mins + ':' + String(secs).padStart(2,'0');
+  }, 1000);
 }
 
 async function loadData() {
@@ -693,6 +731,7 @@ async function loadData() {
         def:    parseInt(m.def || 0),
         def_r:  parseInt(m.def_rank || 0),
         cbt:    parseInt(m.att||0) + parseInt(m.def||0),
+        history: Array.isArray(m.history) ? m.history : [],
       };
     }).filter(m => m.nom && m.points > 0);
 
@@ -708,12 +747,13 @@ async function loadData() {
       bibimbap = allyList.find(a => (a.name||'').toLowerCase().includes('bibimbap'));
     } catch(e) { bibimbap = null; }
 
-    // Historique
+    // Historique — recharge pour cette alliance spécifique
+    loadHistoryData();
     saveHistory(members);
 
     // Render
     renderKPIs(members, allyInfo);
-    renderVersus(members, allyInfo);
+    renderVersus(members, allyInfo, ALL_ALLIANCES);
     renderMembres(members);
     renderCombat(members);
     renderTop5(members);
@@ -759,7 +799,7 @@ function saveHistory(members) {
   });
   merged[today] = snap;
   historyData = Object.values(merged).sort((a,b) => a.date.localeCompare(b.date)).slice(-30);
-  localStorage.setItem('noc_hist', JSON.stringify(historyData));
+  localStorage.setItem(getHistKey(), JSON.stringify(historyData));
 }
 
 function renderKPIs(members, info) {
@@ -773,29 +813,45 @@ function renderKPIs(members, info) {
   document.getElementById('kpi-villes').textContent = totVil;
   document.getElementById('kpi-members').textContent = members.length + ' membres';
   document.getElementById('kpi-rank').textContent = info.rank ? '#' + info.rank + ' mondial' : '';
+  // Met à jour le titre avec l'alliance active
+  document.querySelector('h1').textContent = ACTIVE_ALLY.name;
   document.getElementById('kpi-atk').textContent = fmt(totAtk);
   document.getElementById('kpi-def').textContent = fmt(totDef);
   document.getElementById('kpi-cbt').textContent = fmt(totCbt);
 }
 
-function renderVersus(members, allyInfo) {
-  if (!bibimbap) return;
-  const nocPts   = members.reduce((s,m) => s+m.points, 0);
-  const nocTowns = members.reduce((s,m) => s+m.villes, 0);
-  const bibPts   = parseInt(bibimbap.points || 0);
-  const bibTowns = parseInt(bibimbap.towns || bibimbap.town_count || 0);
-  const total    = nocPts + bibPts;
-  const nocPct   = Math.round(nocPts / total * 100);
-  const bibPct   = 100 - nocPct;
+function renderVersus(members, allyInfo, allAllyList) {
+  const activePts   = members.reduce((s,m) => s+m.points, 0);
+  const activeTowns = members.reduce((s,m) => s+m.villes, 0);
 
-  document.getElementById('vs-noc-pts').textContent   = fmt(nocPts);
-  document.getElementById('vs-noc-towns').textContent = nocTowns + ' villes';
+  // Détermine l'adversaire : si on regarde NOC → Bibimbap, sinon → NOC
+  let opponent = null;
+  if (ACTIVE_ALLY.id === 2) {
+    // On regarde NOC → cherche Bibimbap
+    opponent = (allAllyList||[]).find(a => (a.name||'').toLowerCase().includes('bibimbap'));
+  } else {
+    // On regarde autre alliance → cherche NOC (#2)
+    opponent = (allAllyList||[]).find(a => a.id === 2);
+  }
+
+  if (!opponent) { document.getElementById('versus-strip').style.display = 'none'; return; }
+
+  const oppPts   = parseInt(opponent.points || 0);
+  const oppTowns = parseInt(opponent.towns || opponent.town_count || 0);
+  const total    = activePts + oppPts;
+  const actPct   = total > 0 ? Math.round(activePts / total * 100) : 50;
+  const oppPct   = 100 - actPct;
+
+  document.getElementById('vs-noc-name').textContent  = ACTIVE_ALLY.name;
+  document.getElementById('vs-noc-pts').textContent   = fmt(activePts);
+  document.getElementById('vs-noc-towns').textContent = activeTowns + ' villes';
   document.getElementById('vs-noc-rank').textContent  = allyInfo.rank ? '#' + allyInfo.rank + ' mondial' : '';
-  document.getElementById('vs-bib-pts').textContent   = fmt(bibPts);
-  document.getElementById('vs-bib-towns').textContent = bibTowns + ' villes';
-  document.getElementById('vs-bib-rank').textContent  = bibimbap.rank ? '#' + bibimbap.rank + ' mondial' : '';
-  document.getElementById('vs-bar-noc').style.width   = nocPct + '%';
-  document.getElementById('vs-bar-bib').style.width   = bibPct + '%';
+  document.getElementById('vs-opp-name').textContent  = opponent.name;
+  document.getElementById('vs-bib-pts').textContent   = fmt(oppPts);
+  document.getElementById('vs-bib-towns').textContent = oppTowns + ' villes';
+  document.getElementById('vs-bib-rank').textContent  = opponent.rank ? '#' + opponent.rank + ' mondial' : '';
+  document.getElementById('vs-bar-noc').style.width   = actPct + '%';
+  document.getElementById('vs-bar-bib').style.width   = oppPct + '%';
   document.getElementById('versus-strip').style.display = '';
 }
 
@@ -886,7 +942,20 @@ function getHistDelta(nom, days) {
 
 function renderHistorique() {
   // Graphique points
-  if (historyData.length > 1) {
+  if (historyData.length < 2) {
+    // Pas assez de données — affiche un message dans les canvas
+    ['chart-points', 'chart-combat'].forEach(id => {
+      const canvas = document.getElementById(id);
+      const ctx2 = canvas.getContext('2d');
+      ctx2.clearRect(0,0,canvas.width,canvas.height);
+      ctx2.fillStyle = '#7A8099';
+      ctx2.font = '13px Inter, sans-serif';
+      ctx2.textAlign = 'center';
+      ctx2.fillText('Historique insuffisant — reviens demain 📅', canvas.width/2, 110);
+    });
+    return;
+  }
+  if (historyData.length >= 2) {
     const labels = historyData.map(h => h.date.slice(5));
     const ptData = historyData.map(h => h.total_pts);
     const atkData = historyData.map(h => h.total_atk);
@@ -937,6 +1006,8 @@ function renderHistorique() {
       }
     });
   }
+
+  } // fin if historyData >= 2
 
   // Tableau progression
   const now7d = historyData.length >= 2
@@ -1039,6 +1110,8 @@ function selectAlliance(id, name) {
   // Met à jour le titre
   document.querySelector('h1').textContent = name;
 
+  // Réinitialise l'historique pour la nouvelle alliance
+  loadHistoryData();
   // Recharge les données
   loadData();
 }
