@@ -856,8 +856,9 @@ function saveHistory(members) {
   const lastSnap   = historyData[historyData.length - 1];
   const lastAtk    = parseInt(lastSnap?.total_atk || 0);
   const lastDef    = parseInt(lastSnap?.total_def || 0);
-  const newAtk     = parseInt(window._allyInfo?.att || 0) || members.reduce((s,m) => s+m.atk, 0);
-  const newDef     = parseInt(window._allyInfo?.def || 0) || members.reduce((s,m) => s+m.def, 0);
+  // UNIQUEMENT /alliance/info pour att/def — jamais la somme membres (non fiable)
+  const newAtk     = parseInt(window._allyInfo?.att || 0);
+  const newDef     = parseInt(window._allyInfo?.def || 0);
 
   const snap = {
     date      : date,
@@ -913,10 +914,9 @@ function saveHistory(members) {
 function renderKPIs(members, info) {
   const totPts = members.reduce((s,m) => s+m.points, 0);
   const totVil = members.reduce((s,m) => s+m.villes, 0);
-  // Utilise info.att/def (source /alliance/info) = totaux officiels
-  // Fallback sur la somme membres si info pas dispo
-  const totAtk = parseInt(info.att || 0) || members.reduce((s,m) => s+m.atk, 0);
-  const totDef = parseInt(info.def || 0) || members.reduce((s,m) => s+m.def, 0);
+  // UNIQUEMENT /alliance/info pour att/def — source officielle
+  const totAtk = parseInt(info.att || 0);
+  const totDef = parseInt(info.def || 0);
   const totCbt = totAtk + totDef;
 
   document.getElementById('kpi-points').textContent = fmt(totPts);
@@ -1071,9 +1071,9 @@ function renderCombat(members) {
   renderCombatTable('tbody-def', members, 'def', 'def_r');
   renderCombatTable('tbody-cbt', members, 'cbt', 'cbt_r');
 
-  // ── Totaux — utilise allyInfo (source officielle /alliance/info) ──
-  const totAtk = parseInt(window._allyInfo?.att || 0) || members.reduce((s,m) => s + (m.atk||0), 0);
-  const totDef = parseInt(window._allyInfo?.def || 0) || members.reduce((s,m) => s + (m.def||0), 0);
+  // UNIQUEMENT /alliance/info pour att/def totaux
+  const totAtk = parseInt(window._allyInfo?.att || 0);
+  const totDef = parseInt(window._allyInfo?.def || 0);
   const totCbt = totAtk + totDef;
 
   document.getElementById('total-atk-val').textContent = fmt(totAtk);
