@@ -310,6 +310,37 @@
     margin: 20px 0 10px;
   }
 
+  /* ── TOTAL COMBAT ── */
+  .combat-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+  }
+  .combat-total-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .combat-total-val {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Cinzel', serif;
+  }
+  .combat-total-val.atk { color: #C0392B; }
+  .combat-total-val.def { color: #2E86AB; }
+  .combat-total-val.cbt { color: var(--gold); }
+  .combat-total-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
   footer {
     text-align: center;
     padding: 24px;
@@ -524,6 +555,16 @@
       <div class="card">
         <div class="card-header"><span class="card-title">⚔️ Attaque</span></div>
         <div class="card-body" style="padding:0">
+          <div class="combat-total" id="total-atk">
+            <div>
+              <div class="combat-total-label">Total Attaque</div>
+              <div class="combat-total-val atk" id="total-atk-val">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="combat-total-label">Rang alliance</div>
+              <div class="combat-total-sub" id="total-atk-rank">—</div>
+            </div>
+          </div>
           <table class="member-table" id="table-atk">
             <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
             <tbody id="tbody-atk"></tbody>
@@ -533,6 +574,16 @@
       <div class="card">
         <div class="card-header"><span class="card-title">🛡️ Défense</span></div>
         <div class="card-body" style="padding:0">
+          <div class="combat-total" id="total-def">
+            <div>
+              <div class="combat-total-label">Total Défense</div>
+              <div class="combat-total-val def" id="total-def-val">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="combat-total-label">Rang alliance</div>
+              <div class="combat-total-sub" id="total-def-rank">—</div>
+            </div>
+          </div>
           <table class="member-table" id="table-def">
             <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
             <tbody id="tbody-def"></tbody>
@@ -939,6 +990,22 @@ function renderCombat(members) {
   renderCombatTable('tbody-atk', members, 'atk', 'atk_r');
   renderCombatTable('tbody-def', members, 'def', 'def_r');
   renderCombatTable('tbody-cbt', members, 'cbt', 'cbt_r');
+
+  // ── Totaux ──
+  const totAtk = members.reduce((s,m) => s + (m.atk||0), 0);
+  const totDef = members.reduce((s,m) => s + (m.def||0), 0);
+  const totCbt = totAtk + totDef;
+
+  document.getElementById('total-atk-val').textContent = fmt(totAtk);
+  document.getElementById('total-def-val').textContent = fmt(totDef);
+  document.getElementById('total-cbt-val').textContent = fmt(totCbt);
+  document.getElementById('total-cbt-sub').textContent = fmt(totAtk) + ' + ' + fmt(totDef);
+
+  // Meilleur rang individuel atk/def
+  const bestAtk = members.filter(m => m.atk_r).sort((a,b) => a.atk_r - b.atk_r)[0];
+  const bestDef = members.filter(m => m.def_r).sort((a,b) => a.def_r - b.def_r)[0];
+  document.getElementById('total-atk-rank').textContent = bestAtk ? 'Meilleur : ' + bestAtk.nom + ' #' + bestAtk.atk_r : '';
+  document.getElementById('total-def-rank').textContent = bestDef ? 'Meilleur : ' + bestDef.nom + ' #' + bestDef.def_r : '';
 }
 
 function renderTop5List(elId, members, key, label) {
