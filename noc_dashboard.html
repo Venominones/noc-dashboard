@@ -825,6 +825,7 @@ async function loadData() {
 
     // Render
     window._allyInfo = allyInfo;
+    window._allyInfoId = ACTIVE_ALLY.id;  // marqueur pour valider les snapshots
     renderKPIs(members, allyInfo);
     renderVersus(members, allyInfo, ALL_ALLIANCES);
     renderMembres(members);
@@ -860,13 +861,23 @@ function saveHistory(members) {
   const newAtk     = parseInt(window._allyInfo?.att || 0);
   const newDef     = parseInt(window._allyInfo?.def || 0);
 
+  // Sécurité : _allyInfo doit correspondre à l'alliance active
+  // Si pas encore chargé pour cette alliance → att/def à 0 (ne pas polluer avec données d'une autre alliance)
+  const infoMatchesAlly = window._allyInfoId === ACTIVE_ALLY.id;
+  const safeAtk = infoMatchesAlly ? newAtk : 0;
+  const safeDef = infoMatchesAlly ? newDef : 0;
+
+  // Validation cohérence : variation max +5% par rapport au dernier connu
+  const atkOk = safeAtk > 0 && (lastAtk === 0 || (safeAtk >= lastAtk && safeAtk <= lastAtk * 1.05));
+  const defOk = safeDef > 0 && (lastDef === 0 || (safeDef >= lastDef && safeDef <= lastDef * 1.05));
+
   const snap = {
     date      : date,
     hourKey   : hourKey,
     ts        : now,
     total_pts : members.reduce((s,m) => s+m.points, 0),
-    total_atk : Math.max(newAtk, lastAtk),  // jamais inférieur au dernier connu
-    total_def : Math.max(newDef, lastDef),  // jamais inférieur au dernier connu
+    total_atk : atkOk ? safeAtk : (lastAtk || 0),
+    total_def : defOk ? safeDef : (lastDef || 0),
     members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
   };
 
@@ -1209,23 +1220,24 @@ function renderHistorique() {
       atkData = historyData.map(h => {
         const ah = allyHist.find(a => a.date === h.date);
         if (ah) return parseInt(ah.att);
-        return byDate2[h.date].atk;  // MAX du jour
+        // Aujourd'hui pas encore dans allyHistory → utilise _allyInfo si alliance correcte
+        if (window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.att) {
+          return parseInt(window._allyInfo.att);
+        }
+        return null;  // pas de données fiables
       });
       defData = historyData.map(h => {
         const ah = allyHist.find(a => a.date === h.date);
         if (ah) return parseInt(ah.def);
-        return byDate2[h.date].def;  // MAX du jour
+        if (window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.def) {
+          return parseInt(window._allyInfo.def);
+        }
+        return null;
       });
     } else {
-      // Pas d'allyHistory → MAX du jour (att/def ne peuvent que monter)
-      const byDate = {};
-      historyData.forEach(h => {
-        if (!byDate[h.date]) byDate[h.date] = { atk: 0, def: 0 };
-        byDate[h.date].atk = Math.max(byDate[h.date].atk, h.total_atk);
-        byDate[h.date].def = Math.max(byDate[h.date].def, h.total_def);
-      });
-      atkData = historyData.map(h => byDate[h.date].atk);
-      defData = historyData.map(h => byDate[h.date].def);
+      // Pas d'allyHistory → att/def à null (pas de données fiables)
+      atkData = historyData.map(() => null);
+      defData = historyData.map(() => null);
     }
 
     const ctxPts = document.getElementById('chart-points').getContext('2d');
@@ -1390,8 +1402,11 @@ function selectAlliance(id, name) {
   if (window._chartPts) { window._chartPts.destroy(); window._chartPts = null; }
   if (window._chartCbt) { window._chartCbt.destroy(); window._chartCbt = null; }
 
-  // Vide l'historique en mémoire avant de charger celui de la nouvelle alliance
+  // Vide l'historique et _allyInfo pour éviter données d'une autre alliance
   historyData = [];
+  window._allyInfo   = null;
+  window._allyInfoId = null;
+  window._allyHistory = [];
   loadHistoryData();
   // Recharge les données
   loadData();
