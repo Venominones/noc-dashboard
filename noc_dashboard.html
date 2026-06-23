@@ -773,32 +773,32 @@ async function loadData() {
 
 function saveHistory(members) {
   const today = new Date().toISOString().split('T')[0];
-  const snap = { date: today, ts: Date.now(),
-    total_pts: members.reduce((s,m) => s+m.points,0),
-    total_atk: members.reduce((s,m) => s+m.atk,0),
-    total_def: members.reduce((s,m) => s+m.def,0),
-    members: members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
+  const snap = {
+    date      : today,
+    ts        : Date.now(),
+    total_pts : members.reduce((s,m) => s+m.points, 0),
+    total_atk : members.reduce((s,m) => s+m.atk, 0),
+    total_def : members.reduce((s,m) => s+m.def, 0),
+    members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
   };
-  // garde 30 jours max, 1 snap par jour
-  // Merge l'historique natif de l'API (10 jours par membre)
-  const apiHistMap = {};
-  members.forEach(m => {
-    (m.history || []).forEach(h => {
-      if (!apiHistMap[h.date]) apiHistMap[h.date] = { date: h.date, ts: 0, total_pts: 0, total_atk: 0, total_def: 0, members: [] };
-      apiHistMap[h.date].members.push({ nom: m.nom, pts: h.points, atk: h.att, def: h.def });
-      apiHistMap[h.date].total_pts += h.points;
-      apiHistMap[h.date].total_atk += h.att;
-      apiHistMap[h.date].total_def += h.def;
-    });
+
+  // Charge l'historique existant, PURGE les snapshots corrompus (ts=0 ou pts aberrants)
+  const existing = historyData.filter(h => {
+    const ts  = parseInt(h.ts  || 0);
+    const pts = parseInt(h.total_pts || 0);
+    // Snapshot valide : ts réel (après 2024) ET pts > 0
+    return ts > 1700000000000 && pts > 0;
   });
-  // Fusionne avec l'historique local existant
+
+  // Écrase le snapshot d'aujourd'hui s'il existe déjà, sinon ajoute
   const merged = {};
-  historyData.forEach(h => { merged[h.date] = h; });
-  Object.values(apiHistMap).forEach(h => {
-    if (!merged[h.date]) merged[h.date] = h;
-  });
-  merged[today] = snap;
-  historyData = Object.values(merged).sort((a,b) => a.date.localeCompare(b.date)).slice(-30);
+  existing.forEach(h => { merged[h.date] = h; });
+  merged[today] = snap;  // toujours le snapshot frais du jour
+
+  historyData = Object.values(merged)
+    .sort((a,b) => a.date.localeCompare(b.date))
+    .slice(-30);  // max 30 jours
+
   localStorage.setItem(getHistKey(), JSON.stringify(historyData));
 }
 
