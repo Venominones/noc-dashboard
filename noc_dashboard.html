@@ -340,6 +340,9 @@
     color: var(--text-dim);
     margin-top: 2px;
   }
+  .delta-cbt-pos { color: #e74c3c; font-weight:600; }  /* rouge = plus de combat */
+  .delta-cbt-neg { color: #2E86AB; }
+  .delta-cbt-zero{ color: var(--text-dim); }
 
   footer {
     text-align: center;
@@ -566,7 +569,7 @@
             </div>
           </div>
           <table class="member-table" id="table-atk">
-            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th><th class="r">Δ Auj.</th></tr></thead>
             <tbody id="tbody-atk"></tbody>
           </table>
         </div>
@@ -585,7 +588,7 @@
             </div>
           </div>
           <table class="member-table" id="table-def">
-            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th><th class="r">Δ Auj.</th></tr></thead>
             <tbody id="tbody-def"></tbody>
           </table>
         </div>
@@ -604,7 +607,7 @@
             </div>
           </div>
           <table class="member-table" id="table-cbt">
-            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th></tr></thead>
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th><th class="r">Δ Auj.</th></tr></thead>
             <tbody id="tbody-cbt"></tbody>
           </table>
         </div>
@@ -763,13 +766,19 @@ async function loadData() {
 
   try {
     setStatus('Chargement des membres...');
-    const [membersResp, rankingResp, allyResp] = await Promise.all([
+    const [membersResp, rankingResp, allyResp, allyHistResp] = await Promise.all([
       apiFetch(`/alliance/members?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
       apiFetch(`/ranking/player?world=${WORLD}`),
       apiFetch(`/alliance/info?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
+      apiFetch(`/alliance/history?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
     ]);
 
     setStatus('Traitement des données...');
+
+    // Historique officiel alliance (1 point par jour, 21 jours)
+    const allyHistory = (Array.isArray(allyHistResp) ? allyHistResp : [])
+      .sort((a,b) => a.date.localeCompare(b.date));
+    window._allyHistory = allyHistory;
 
     // Build ranking map
     const rankMap = {};
@@ -980,12 +989,52 @@ function renderMembres(members) {
   }).join('');
 }
 
+function getOfficialDelta(key, days) {
+  // Utilise /alliance/history pour les deltas officiels par jour
+  const hist = window._allyHistory || [];
+  if (hist.length < 2) return null;
+  const today = hist[hist.length - 1];
+  const past  = days === 0
+    ? getSnapSinceToday()  // intra-journalier via snapshots
+    : hist[Math.max(0, hist.length - 1 - days)];
+  if (!past) return null;
+  const nowVal  = parseInt(today[key] || 0);
+  const pastVal = days === 0
+    ? parseInt((getSnapSinceToday()?.['total_' + key] || 0))
+    : parseInt(past[key] || 0);
+  return nowVal - pastVal;
+}
+
+function getCombatDelta(nom, key) {
+  // Utilise les snapshots localStorage (même logique que Membres)
+  if (historyData.length < 2) return null;
+  const nowSnap  = historyData[historyData.length - 1];
+  const pastSnap = getSnapSinceToday();
+  if (!pastSnap || pastSnap.ts === nowSnap.ts) return null;
+  const nowM  = nowSnap.members?.find(m => m.nom === nom);
+  const pastM = pastSnap.members?.find(m => m.nom === nom);
+  if (!nowM || !pastM) return null;
+  // key = 'atk', 'def', 'cbt'
+  return (nowM[key] || 0) - (pastM[key] || 0);
+}
+
 function renderCombatTable(tbodyId, members, key, rankKey) {
   const sorted = [...members].filter(m => m[key] > 0).sort((a,b) => b[key] - a[key]);
   const max = sorted[0]?.[key] || 1;
   const barClass = { atk:'bar-atk', def:'bar-def', cbt:'bar-cbt' }[key];
   document.getElementById(tbodyId).innerHTML = sorted.map((m, i) => {
-    const pct = Math.round(m[key] / max * 100);
+    const pct   = Math.round(m[key] / max * 100);
+    const delta = getCombatDelta(m.nom, key);
+    let deltaHtml;
+    if (delta === null) {
+      deltaHtml = '<span class="delta-cbt-zero">—</span>';
+    } else if (delta > 0) {
+      deltaHtml = `<span class="delta-cbt-pos">+${fmt(delta)}</span>`;
+    } else if (delta < 0) {
+      deltaHtml = `<span class="delta-cbt-neg">${fmt(delta)}</span>`;
+    } else {
+      deltaHtml = '<span class="delta-cbt-zero">0</span>';
+    }
     return `<tr>
       <td><span class="rank-badge ${i<3?'top3':''}">${i+1}</span></td>
       <td class="name-cell">${m.nom}</td>
@@ -996,6 +1045,7 @@ function renderCombatTable(tbodyId, members, key, rankKey) {
         </div>
       </td>
       <td class="r">${m[rankKey] > 0 ? '#' + m[rankKey] : '—'}</td>
+      <td class="r">${deltaHtml}</td>
     </tr>`;
   }).join('');
 }
@@ -1014,6 +1064,31 @@ function renderCombat(members) {
   document.getElementById('total-def-val').textContent = fmt(totDef);
   document.getElementById('total-cbt-val').textContent = fmt(totCbt);
   document.getElementById('total-cbt-sub').textContent = fmt(totAtk) + ' + ' + fmt(totDef);
+
+  // Deltas officiels depuis /alliance/history
+  const fmtD = (v) => v > 0 ? '+' + fmt(v) : v < 0 ? fmt(v) : String(v);
+  const hist  = window._allyHistory || [];
+  if (hist.length >= 2) {
+    const today = hist[hist.length - 1];
+    const yest  = hist[hist.length - 2];
+    const dAtk  = parseInt(today.att||0) - parseInt(yest.att||0);
+    const dDef  = parseInt(today.def||0) - parseInt(yest.def||0);
+    const dCbt  = dAtk + dDef;
+
+    const atkRankEl = document.getElementById('total-atk-rank');
+    const defRankEl = document.getElementById('total-def-rank');
+    const cbtSubEl  = document.getElementById('total-cbt-sub');
+
+    if (atkRankEl) atkRankEl.innerHTML =
+      (bestAtk ? 'Meilleur : ' + bestAtk.nom + ' #' + bestAtk.atk_r : '') +
+      (dAtk !== 0 ? `<br><span style="color:#e74c3c;font-weight:600">${fmtD(dAtk)} hier→auj.</span>` : '');
+    if (defRankEl) defRankEl.innerHTML =
+      (bestDef ? 'Meilleur : ' + bestDef.nom + ' #' + bestDef.def_r : '') +
+      (dDef !== 0 ? `<br><span style="color:#2E86AB;font-weight:600">${fmtD(dDef)} hier→auj.</span>` : '');
+    if (cbtSubEl) cbtSubEl.innerHTML =
+      fmt(totAtk) + ' + ' + fmt(totDef) +
+      (dCbt !== 0 ? `<br><span style="color:var(--gold);font-weight:600">${fmtD(dCbt)} hier→auj.</span>` : '');
+  }
 
   // Meilleur rang individuel atk/def
   const bestAtk = members.filter(m => m.atk_r).sort((a,b) => a.atk_r - b.atk_r)[0];
