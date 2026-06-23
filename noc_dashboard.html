@@ -815,6 +815,7 @@ async function loadData() {
     saveHistory(members);
 
     // Render
+    window._allyInfo = allyInfo;
     renderKPIs(members, allyInfo);
     renderVersus(members, allyInfo, ALL_ALLIANCES);
     renderMembres(members);
@@ -847,8 +848,9 @@ function saveHistory(members) {
     hourKey   : hourKey,
     ts        : now,
     total_pts : members.reduce((s,m) => s+m.points, 0),
-    total_atk : members.reduce((s,m) => s+m.atk, 0),
-    total_def : members.reduce((s,m) => s+m.def, 0),
+    // Utilise info officielle pour att/def si dispo
+    total_atk : parseInt(window._allyInfo?.att || 0) || members.reduce((s,m) => s+m.atk, 0),
+    total_def : parseInt(window._allyInfo?.def || 0) || members.reduce((s,m) => s+m.def, 0),
     members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
   };
 
@@ -886,9 +888,11 @@ function saveHistory(members) {
 function renderKPIs(members, info) {
   const totPts = members.reduce((s,m) => s+m.points, 0);
   const totVil = members.reduce((s,m) => s+m.villes, 0);
-  const totAtk = members.reduce((s,m) => s+m.atk, 0);
-  const totDef = members.reduce((s,m) => s+m.def, 0);
-  const totCbt = members.reduce((s,m) => s+m.cbt, 0);
+  // Utilise info.att/def (source /alliance/info) = totaux officiels
+  // Fallback sur la somme membres si info pas dispo
+  const totAtk = parseInt(info.att || 0) || members.reduce((s,m) => s+m.atk, 0);
+  const totDef = parseInt(info.def || 0) || members.reduce((s,m) => s+m.def, 0);
+  const totCbt = totAtk + totDef;
 
   document.getElementById('kpi-points').textContent = fmt(totPts);
   document.getElementById('kpi-villes').textContent = totVil;
@@ -1001,9 +1005,9 @@ function renderCombat(members) {
   renderCombatTable('tbody-def', members, 'def', 'def_r');
   renderCombatTable('tbody-cbt', members, 'cbt', 'cbt_r');
 
-  // ── Totaux ──
-  const totAtk = members.reduce((s,m) => s + (m.atk||0), 0);
-  const totDef = members.reduce((s,m) => s + (m.def||0), 0);
+  // ── Totaux — utilise allyInfo (source officielle /alliance/info) ──
+  const totAtk = parseInt(window._allyInfo?.att || 0) || members.reduce((s,m) => s + (m.atk||0), 0);
+  const totDef = parseInt(window._allyInfo?.def || 0) || members.reduce((s,m) => s + (m.def||0), 0);
   const totCbt = totAtk + totDef;
 
   document.getElementById('total-atk-val').textContent = fmt(totAtk);
