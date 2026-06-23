@@ -1065,6 +1065,10 @@ function renderCombat(members) {
   document.getElementById('total-cbt-val').textContent = fmt(totCbt);
   document.getElementById('total-cbt-sub').textContent = fmt(totAtk) + ' + ' + fmt(totDef);
 
+  // Meilleur rang individuel atk/def — déclaré AVANT le bloc delta
+  const bestAtk = members.filter(m => m.atk_r).sort((a,b) => a.atk_r - b.atk_r)[0];
+  const bestDef = members.filter(m => m.def_r).sort((a,b) => a.def_r - b.def_r)[0];
+
   // Deltas officiels depuis /alliance/history
   const fmtD = (v) => v > 0 ? '+' + fmt(v) : v < 0 ? fmt(v) : String(v);
   const hist  = window._allyHistory || [];
@@ -1089,10 +1093,6 @@ function renderCombat(members) {
       fmt(totAtk) + ' + ' + fmt(totDef) +
       (dCbt !== 0 ? `<br><span style="color:var(--gold);font-weight:600">${fmtD(dCbt)} hier→auj.</span>` : '');
   }
-
-  // Meilleur rang individuel atk/def
-  const bestAtk = members.filter(m => m.atk_r).sort((a,b) => a.atk_r - b.atk_r)[0];
-  const bestDef = members.filter(m => m.def_r).sort((a,b) => a.def_r - b.def_r)[0];
   document.getElementById('total-atk-rank').textContent = bestAtk ? 'Meilleur : ' + bestAtk.nom + ' #' + bestAtk.atk_r : '';
   document.getElementById('total-def-rank').textContent = bestDef ? 'Meilleur : ' + bestDef.nom + ' #' + bestDef.def_r : '';
 }
