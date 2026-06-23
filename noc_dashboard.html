@@ -996,7 +996,10 @@ function renderMembres(members) {
   tbody.innerHTML = sorted.map((m, i) => {
     const rankCls = i === 0 ? 'top1' : i < 3 ? 'top3' : '';
     const pct = Math.round(m.points / maxPts * 100);
-    const hist = getHistDelta(m.nom, 1);
+    // Δ aujourd'hui depuis member.history[] (delta quotidien API) — fonctionne pour toutes les alliances
+    const todayKey = new Date().toISOString().split('T')[0];
+    const todayPts = (m.history||[]).filter(h => h.date === todayKey).reduce((s,h)=>s+parseInt(h.points||0),0);
+    const hist = todayPts > 0 ? todayPts : null;
     const deltaHtml = hist !== null
       ? `<span class="${hist > 0 ? 'delta-pos' : hist < 0 ? 'delta-neg' : 'delta-zero'}">${hist > 0 ? '+' : ''}${fmt(hist)}</span>`
       : '<span class="delta-zero">—</span>';
@@ -1183,168 +1186,144 @@ function getHistDelta(nom, days) {
 }
 
 function renderHistorique() {
-  // ── SOURCE UNIQUE : /alliance/history pour att/def/pts, snapshots pour pts intra-jour ──
-  const allyHist = (window._allyHistory || []).sort((a,b) => a.date.localeCompare(b.date));
+  // ══ SOURCE UNIQUE : /alliance/history ══
+  // - pts/att/def par jour = totaux cumulés officiels (comme GrepoData)
+  // - On prend les 10 derniers jours avec att > 0
+  // - On ajoute aujourd'hui depuis _allyInfo si pas encore dans history
 
-  // Graphe att/def : 100% depuis /alliance/history
-  // + point d'aujourd'hui depuis _allyInfo si pas encore dans allyHistory
-  const today = new Date().toISOString().split('T')[0];
-  // Limite aux 10 derniers jours pour lisibilité
+  const allyHist = (window._allyHistory || [])
+    .sort((a,b) => a.date.localeCompare(b.date))
+    .filter(h => parseInt(h.att) > 0);  // exclut les jours sans données
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayInHist = allyHist.some(h => h.date === todayStr);
+
+  // Construit les séries pour le graphe att/def (10 derniers jours + aujourd'hui)
   const recentHist = allyHist.slice(-10);
   let combatLabels = recentHist.map(h => h.date.slice(5));
   let atkData      = recentHist.map(h => parseInt(h.att));
   let defData      = recentHist.map(h => parseInt(h.def));
 
-  // Ajoute aujourd'hui si pas encore dans allyHistory
-  const todayInHist = allyHist.some(h => h.date === today);
-  if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.att) {
-    combatLabels = [...combatLabels, today.slice(5)];
-    atkData      = [...atkData, parseInt(window._allyInfo.att)];
-    defData      = [...defData, parseInt(window._allyInfo.def)];
+  // Ajoute aujourd'hui depuis _allyInfo (pas encore dans history)
+  if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && parseInt(window._allyInfo?.att) > 0) {
+    combatLabels.push(todayStr.slice(5));
+    atkData.push(parseInt(window._allyInfo.att));
+    defData.push(parseInt(window._allyInfo.def));
   }
 
-  // Graphe points : depuis snapshots (intra-jour) + allyHistory pour les jours passés
-  // Si pas assez de snapshots → utilise allyHistory pour pts aussi
+  // Construit les séries pour le graphe points (snapshots intra-jour + history pour les jours passés)
   let ptLabels, ptData;
   if (historyData.length >= 2) {
-    ptLabels = historyData.map(h => h.date.slice(5) + ' ' + new Date(h.ts).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}));
+    ptLabels = historyData.map(h => new Date(h.ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
     ptData   = historyData.map(h => h.total_pts);
-  } else if (allyHist.length >= 2) {
-    ptLabels = allyHist.map(h => h.date.slice(5));
-    ptData   = allyHist.map(h => parseInt(h.points));
+  } else if (allyHist.length >= 1) {
+    const pts10 = allyHist.slice(-10);
+    ptLabels = pts10.map(h => h.date.slice(5));
+    ptData   = pts10.map(h => parseInt(h.points));
     if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.points) {
-      ptLabels = [...ptLabels, today.slice(5)];
-      ptData   = [...ptData, parseInt(window._allyInfo.points)];
+      ptLabels.push(todayStr.slice(5));
+      ptData.push(parseInt(window._allyInfo.points));
     }
   } else {
-    ['chart-points', 'chart-combat'].forEach(id => {
-      const canvas = document.getElementById(id);
-      if (!canvas) return;
-      const ctx2 = canvas.getContext('2d');
-      ctx2.clearRect(0,0,canvas.width,canvas.height);
-      ctx2.fillStyle = '#7A8099';
-      ctx2.font = '13px Inter, sans-serif';
-      ctx2.textAlign = 'center';
-      ctx2.fillText('Historique insuffisant — reviens demain 📅', canvas.width/2, 110);
+    ['chart-points','chart-combat'].forEach(id => {
+      const cv = document.getElementById(id); if (!cv) return;
+      const cx = cv.getContext('2d');
+      cx.clearRect(0,0,cv.width,cv.height);
+      cx.fillStyle='#7A8099'; cx.font='13px Inter,sans-serif'; cx.textAlign='center';
+      cx.fillText('Historique insuffisant 📅', cv.width/2, 110);
     });
     return;
   }
 
-  if (true) {
-    const labels = ptLabels;
-
-    const ctxPts = document.getElementById('chart-points').getContext('2d');
-    if (window._chartPts) window._chartPts.destroy();
-    window._chartPts = new Chart(ctxPts, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Points ' + ACTIVE_ALLY.name,
-          data: ptData,
-          borderColor: '#C9A84C',
-          backgroundColor: 'rgba(201,168,76,0.1)',
-          fill: true, tension: 0.3, pointRadius: 3,
-        }]
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#E8E4D9', font: { size: 11 } } } },
-        scales: {
-          x: { ticks: { color: '#7A8099', font: { size: 10 } }, grid: { color: '#222737' } },
-          y: { ticks: { color: '#7A8099', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#222737' } }
-        }
+  // ── Graphe Points ──
+  const ctxPts = document.getElementById('chart-points').getContext('2d');
+  if (window._chartPts) window._chartPts.destroy();
+  window._chartPts = new Chart(ctxPts, {
+    type: 'line',
+    data: { labels: ptLabels, datasets: [{
+      label: 'Points ' + ACTIVE_ALLY.name,
+      data: ptData,
+      borderColor: '#C9A84C', backgroundColor: 'rgba(201,168,76,0.1)',
+      fill: true, tension: 0.3, pointRadius: 2,
+    }]},
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color:'#C9A84C', font:{size:11} } } },
+      scales: {
+        x: { ticks: { color:'#7A8099', font:{size:9}, maxRotation:45 }, grid:{color:'#222737'} },
+        y: { ticks: { color:'#7A8099', font:{size:10}, callback: v=>fmt(v) }, grid:{color:'#222737'} }
       }
-    });
+    }
+  });
 
-    const ctxCbt = document.getElementById('chart-combat').getContext('2d');
-    if (window._chartCbt) window._chartCbt.destroy();
+  // ── Graphe Attaque + Défense ──
+  const ctxCbt = document.getElementById('chart-combat').getContext('2d');
+  if (window._chartCbt) window._chartCbt.destroy();
+  if (combatLabels.length < 2) {
+    ctxCbt.clearRect(0,0,ctxCbt.canvas.width,ctxCbt.canvas.height);
+    ctxCbt.fillStyle='#7A8099'; ctxCbt.font='13px Inter,sans-serif'; ctxCbt.textAlign='center';
+    ctxCbt.fillText('Pas encore de données att/def disponibles', ctxCbt.canvas.width/2, 110);
+  } else {
     window._chartCbt = new Chart(ctxCbt, {
       type: 'line',
-      data: {
-        labels,
-        datasets: [
-          { label: 'Attaque', data: atkData, borderColor: '#C0392B', backgroundColor: 'rgba(192,57,43,0.1)', fill: true, tension: 0.3, pointRadius: 3 },
-          { label: 'Défense', data: defData, borderColor: '#2E86AB', backgroundColor: 'rgba(46,134,171,0.1)', fill: true, tension: 0.3, pointRadius: 3 },
-        ]
-      },
+      data: { labels: combatLabels, datasets: [
+        { label:'Attaque', data:atkData, borderColor:'#C0392B', backgroundColor:'rgba(192,57,43,0.15)', fill:true, tension:0.3, pointRadius:3 },
+        { label:'Défense', data:defData, borderColor:'#2E86AB', backgroundColor:'rgba(46,134,171,0.1)',  fill:true, tension:0.3, pointRadius:3 },
+      ]},
       options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { labels: { color: '#E8E4D9', font: { size: 11 } } } },
+        responsive: true,
+        plugins: { legend: { labels: { color:'#ccc', font:{size:11} } } },
         scales: {
-          x: { ticks: { color: '#7A8099', font: { size: 10 } }, grid: { color: '#222737' } },
-          y: { ticks: { color: '#7A8099', font: { size: 10 }, callback: v => fmt(v) }, grid: { color: '#222737' } }
+          x: { ticks: { color:'#7A8099', font:{size:10} }, grid:{color:'#222737'} },
+          y: { ticks: { color:'#7A8099', font:{size:10}, callback: v=>fmt(v) }, grid:{color:'#222737'} }
         }
       }
     });
   }
 
+  // ── Tableau progression individuelle (depuis member.history[] = deltas quotidiens) ──
+  const curr   = historyData[historyData.length - 1];
+  const currTs = curr?.ts || Date.now();
+  const todayDate  = new Date().toISOString().split('T')[0];
+  const date7j     = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
 
-  // Tableau progression — utilise history[] de l'API par membre (toujours dispo)
-  // history[] = [{date, points, att, def}] pour les N derniers jours
-  const todayStr = new Date().toISOString().split('T')[0];
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-  const date7j    = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
-
-  // Fonction : delta pts d'un membre entre deux dates via son history[]
-  function getMemberHistDelta(member, fromDate, todayOnly) {
-    // history[] = deltas QUOTIDIENS (points gagnés ce jour-là, pas cumulés)
+  // Δ aujourd'hui = somme des points dans member.history pour la date d'aujourd'hui
+  // Δ 7 jours = somme des points dans member.history depuis 7 jours
+  function getMemberDelta(member, fromDate) {
     if (!Array.isArray(member.history) || member.history.length === 0) return null;
-    const relevant = todayOnly
-      ? member.history.filter(h => h.date >= fromDate)   // aujourd'hui
-      : member.history.filter(h => h.date >= fromDate);  // depuis N jours
-    if (relevant.length === 0) return null;
-    return relevant.reduce((sum, h) => sum + parseInt(h.points || 0), 0);
+    const sum = member.history
+      .filter(h => h.date >= fromDate)
+      .reduce((s,h) => s + parseInt(h.points||0), 0);
+    return sum > 0 ? sum : null;
   }
 
-  const tbody = document.getElementById('tbody-hist');
-  const sortedMembers = [...members].sort((a,b) => b.points - a.points);
+  const sortedM = [...members].sort((a,b) => b.points - a.points);
+  const tbody   = document.getElementById('tbody-hist');
+  if (!tbody) return;
 
-  tbody.innerHTML = sortedMembers.map(m => {
-    const delta1 = getMemberHistDelta(m, todayStr, true);   // aujourd'hui seulement
-    const delta7 = getMemberHistDelta(m, date7j, false);    // depuis 7 jours
-
-    const d1Html = delta1 !== null ? `<span class="${delta1>0?'delta-pos':delta1<0?'delta-neg':'delta-zero'}">${delta1>0?'+':''}${fmt(delta1)}</span>` : '—';
-    const d7Html = delta7 !== null ? `<span class="${delta7>0?'delta-pos':delta7<0?'delta-neg':'delta-zero'}">${delta7>0?'+':''}${fmt(delta7)}</span>` : '—';
-
-    // Mini sparkline tendance
-    const memberHist = historyData.slice(-7).map(h => h.members?.find(x=>x.nom===m.nom)?.pts || 0);
-    const trend = memberHist.length > 1 ? (memberHist[memberHist.length-1] - memberHist[0] > 0 ? '📈' : memberHist[memberHist.length-1] - memberHist[0] < 0 ? '📉' : '➡️') : '—';
-
+  tbody.innerHTML = sortedM.map(m => {
+    const d1 = getMemberDelta(m, todayDate);
+    const d7 = getMemberDelta(m, date7j);
+    const fmtD = (v) => v === null ? '—' : v > 0 ? `<span class="delta-pos">+${fmt(v)}</span>` : `<span class="delta-neg">${fmt(v)}</span>`;
+    // Sparkline tendance (7 derniers jours)
+    const memberHist = [...(m.history||[])].sort((a,b)=>a.date.localeCompare(b.date)).slice(-7);
+    const trend = memberHist.length >= 2
+      ? (memberHist[memberHist.length-1].points > memberHist[0].points ? '📈' : '📉')
+      : '—';
     return `<tr>
-      <td class="name-cell">${m.nom}</td>
+      <td>${m.nom}</td>
       <td class="r">${fmt(m.points)}</td>
-      <td class="r">${d1Html}</td>
-      <td class="r">${d7Html}</td>
+      <td class="r">${fmtD(d1)}</td>
+      <td class="r">${fmtD(d7)}</td>
       <td class="r">${trend}</td>
     </tr>`;
   }).join('');
 
-  document.getElementById('hist-info').textContent =
-    historyData.length > 0 ? `${historyData.length} snapshot${historyData.length>1?'s':''} stockés` : 'Aucun historique';
+  // Badge snapshots — SUPPRIMÉ (inutile)
+  const badge = document.getElementById('hist-info');
+  if (badge) badge.style.display = 'none';
 }
 
-// loadData() appelé via auto-refresh ci-dessous
-
-// ─── ALLIANCE SWITCHER ───
-
-async function loadAllAlliances() {
-  try {
-    const data = await apiFetch(`/ranking/alliance?world=${WORLD}`);
-    const list = Array.isArray(data) ? data :
-                 data?.results || data?.alliances || [];
-    ALL_ALLIANCES = list.map(a => ({
-      id    : a.id || a.alliance_id,
-      name  : a.name || a.alliance_name || '',
-      rank  : parseInt(a.rank || 0),
-      points: parseInt(a.points || 0),
-      towns : parseInt(a.towns || 0),
-    })).filter(a => a.name).sort((a,b) => a.rank - b.rank);
-    console.log(`[NOC] ${ALL_ALLIANCES.length} alliances chargées`);
-  } catch(e) {
-    console.warn('[NOC] Impossible de charger les alliances:', e);
-  }
-}
 
 function fmt_k(n) {
   if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
@@ -1352,14 +1331,38 @@ function fmt_k(n) {
   return String(n);
 }
 
-function renderAllyDropdown(query) {
+async function renderAllyDropdown(query) {
   const dropdown = document.getElementById('ally-dropdown');
   if (!query && ALL_ALLIANCES.length === 0) { dropdown.classList.remove('open'); return; }
 
   const q = query.toLowerCase().trim();
-  const filtered = q
+
+  // Filtre local d'abord (top 30 déjà chargés)
+  let filtered = q
     ? ALL_ALLIANCES.filter(a => a.name.toLowerCase().includes(q)).slice(0, 20)
     : ALL_ALLIANCES.slice(0, 20);
+
+  // Si moins de 5 résultats locaux ET query >= 3 chars → cherche via l'API search
+  if (q.length >= 3 && filtered.length < 5) {
+    try {
+      const res = await fetch(
+        `https://api.grepodata.com/search?query=${encodeURIComponent(q)}&preferred_server=${WORLD}`
+      ).then(r => r.json());
+      const apiResults = (res?.results || [])
+        .filter(a => a.world === WORLD)  // seulement fr183
+        .map(a => ({
+          id    : a.id,
+          name  : a.name,
+          rank  : parseInt(a.rank || 999),
+          points: parseInt(a.points || 0),
+          towns : parseInt(a.towns || 0),
+        }));
+      // Fusionne avec les résultats locaux (dédoublonne par id)
+      const seen = new Set(filtered.map(a => a.id));
+      apiResults.forEach(a => { if (!seen.has(a.id)) { filtered.push(a); seen.add(a.id); } });
+      filtered = filtered.slice(0, 20);
+    } catch(e) { /* silencieux */ }
+  }
 
   if (filtered.length === 0) { dropdown.classList.remove('open'); return; }
 
@@ -1409,6 +1412,31 @@ function selectAlliance(id, name) {
 }
 
 // Événements du champ de recherche
+
+// ─── ALLIANCE SWITCHER : charge toutes les alliances ───
+async function loadAllAlliances() {
+  try {
+    // L'API /ranking/alliance retourne toujours les 30 mêmes alliances
+    // (pagination non fonctionnelle) — on charge une seule fois et on dédoublonne par id
+    const data = await apiFetch(`/ranking/alliance?world=${WORLD}`);
+    const raw  = data?.results || (Array.isArray(data) ? data : []);
+    const seen = new Set();
+    ALL_ALLIANCES = raw
+      .map(a => ({
+        id    : a.id || a.alliance_id,
+        name  : a.name || a.alliance_name || '',
+        rank  : parseInt(a.rank || 0),
+        points: parseInt(a.points || 0),
+        towns : parseInt(a.towns || 0),
+      }))
+      .filter(a => a.name && a.id && !seen.has(a.id) && seen.add(a.id))
+      .sort((a,b) => a.rank - b.rank);
+    console.log(`[NOC] ${ALL_ALLIANCES.length} alliances chargées`);
+  } catch(e) {
+    console.warn('[NOC] loadAllAlliances:', e);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const input    = document.getElementById('ally-search');
   const dropdown = document.getElementById('ally-dropdown');
