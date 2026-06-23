@@ -888,9 +888,7 @@ function renderMembres(members) {
     const diffMs = newest.ts - oldest.ts;
     const diffH  = Math.round(diffMs / 3600000);
     const diffM  = Math.round(diffMs / 60000);
-    if (diffMs < 3600000)      thDelta.textContent = 'Δ ' + diffM + 'min';
-    else if (diffMs < 86400000) thDelta.textContent = 'Δ ' + diffH + 'h';
-    else                        thDelta.textContent = 'Δ 24H';
+    thDelta.textContent = 'Δ Aujourd\'hui';
   }
 
   const tbody = document.getElementById('tbody-membres');
@@ -962,22 +960,39 @@ function renderTop5(members) {
   renderTop5List('top5-villes',members, 'villes', '🏙️');
 }
 
+function getSnapSinceToday() {
+  // Retourne le snap le plus vieux depuis 00h00 aujourd'hui
+  // ou le plus vieux snap dispo si rien depuis minuit
+  if (historyData.length === 0) return null;
+  const now = historyData[historyData.length - 1];
+  const midnight = new Date(now.ts);
+  midnight.setHours(0, 0, 0, 0);
+  const midnightTs = midnight.getTime();
+  // Snaps d'aujourd'hui
+  const todaySnaps = historyData.filter(h => h.ts >= midnightTs);
+  if (todaySnaps.length >= 2) return todaySnaps[0]; // premier snap d'aujourd'hui
+  // Pas assez de snaps aujourd'hui → prend le plus vieux dispo
+  return historyData.length >= 2 ? historyData[0] : null;
+}
+
 function getHistDelta(nom, days) {
   if (historyData.length < 2) return null;
-  const nowSnap  = historyData[historyData.length - 1];
-  const nowTs    = nowSnap.ts;
-  const windowMs = days * 24 * 3600 * 1000;
+  const nowSnap = historyData[historyData.length - 1];
 
-  // Cherche le snap le plus ancien dans la fenêtre demandée
-  // Si days=1 : snap d'il y a ~24h, ou le plus vieux dispo si < 24h
-  const cutoff = nowTs - windowMs;
-  const candidates = historyData.slice(0, -1).filter(h => h.ts <= cutoff);
-  const pastSnap = candidates.length > 0
-    ? candidates[candidates.length - 1]   // le plus proche du cutoff
-    : historyData[0];                     // le plus vieux dispo (delta live)
+  let pastSnap;
+  if (days <= 1) {
+    // Δ 24H dans membres = depuis 00h00 aujourd'hui (ou plus vieux snap dispo)
+    pastSnap = getSnapSinceToday();
+  } else {
+    // Δ 7j etc. = snap il y a X jours réels
+    const cutoff = nowSnap.ts - days * 24 * 3600 * 1000;
+    const candidates = historyData.slice(0, -1).filter(h => h.ts <= cutoff);
+    pastSnap = candidates.length > 0
+      ? candidates[candidates.length - 1]
+      : historyData[0];
+  }
 
   if (!pastSnap || pastSnap.ts === nowSnap.ts) return null;
-
   const nowM  = nowSnap.members?.find(m => m.nom === nom);
   const pastM = pastSnap.members?.find(m => m.nom === nom);
   if (!nowM || !pastM) return null;
@@ -1052,14 +1067,17 @@ function renderHistorique() {
   }
 
 
-  // Tableau progression
-  const now7d = historyData.length >= 2
-    ? historyData[Math.max(0, historyData.length - 8)]
-    : null;
-  const now1d = historyData.length >= 2
-    ? historyData[historyData.length - 2]
-    : null;
-  const curr = historyData[historyData.length - 1];
+  // Tableau progression — fenêtres temporelles réelles
+  const curr   = historyData[historyData.length - 1];
+  const currTs = curr?.ts || Date.now();
+
+  // Δ aujourd'hui : réutilise getSnapSinceToday() → cohérent avec l'onglet Membres
+  const now1d = getSnapSinceToday();
+
+  // Δ 7 jours : snap le plus proche d'il y a 7 jours, sinon le plus vieux dispo
+  const cutoff7d = currTs - 7 * 24 * 3600 * 1000;
+  const snaps7d  = historyData.filter(h => h.ts <= cutoff7d);
+  const now7d    = snaps7d.length > 0 ? snaps7d[snaps7d.length - 1] : historyData[0];
 
   const tbody = document.getElementById('tbody-hist');
   const sortedMembers = [...members].sort((a,b) => b.points - a.points);
