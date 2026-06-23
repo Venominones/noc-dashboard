@@ -318,6 +318,84 @@
     border-top: 1px solid var(--border);
     margin-top: 32px;
   }
+
+  /* ── ALLIANCE SWITCHER ── */
+  .ally-switcher {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+  .ally-switcher-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .ally-search-wrap { position: relative; }
+  .ally-search {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .ally-search:focus { border-color: var(--gold-dim); }
+  .ally-search::placeholder { color: var(--text-dim); }
+  .ally-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 280px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 999;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .ally-dropdown.open { display: block; }
+  .ally-item {
+    padding: 9px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(46,52,71,0.4);
+    transition: background 0.15s;
+  }
+  .ally-item:last-child { border-bottom: none; }
+  .ally-item:hover { background: var(--bg3); }
+  .ally-item.active { background: rgba(201,168,76,0.1); }
+  .ally-item-name { font-size: 13px; font-weight: 500; }
+  .ally-item-rank { font-size: 11px; color: var(--text-dim); }
+  .ally-item-pts  { font-size: 11px; color: var(--gold-dim); }
+  .ally-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 </style>
 </head>
 <body>
@@ -337,11 +415,21 @@
       <div class="subtitle">Dashboard Alliance · fr183</div>
     </div>
   </div>
-  <div class="header-meta">
-    <div class="world-badge">FR183</div>
-    <div class="last-update" id="last-update" style="margin-top:6px">—</div>
-    <div class="last-update" id="countdown" style="margin-top:2px;color:var(--gold-dim)">—</div>
-    <button class="refresh-btn" onclick="loadData()" style="margin-top:8px">↺ Actualiser</button>
+  <div class="header-meta" style="display:flex;align-items:center;gap:16px">
+    <div class="ally-switcher">
+      <span class="ally-switcher-label">👁️ Alliance</span>
+      <div class="ally-search-wrap">
+        <input class="ally-search" id="ally-search" placeholder="Rechercher une alliance..." autocomplete="off">
+        <div class="ally-dropdown" id="ally-dropdown"></div>
+      </div>
+      <div class="ally-badge" id="ally-badge">NOC</div>
+    </div>
+    <div style="text-align:right">
+      <div class="world-badge">FR183</div>
+      <div class="last-update" id="last-update" style="margin-top:6px">—</div>
+      <div class="last-update" id="countdown" style="margin-top:2px;color:var(--gold-dim)">—</div>
+      <button class="refresh-btn" onclick="loadData()" style="margin-top:8px">↺ Actualiser</button>
+    </div>
   </div>
 </header>
 
@@ -575,9 +663,9 @@ async function loadData() {
   try {
     setStatus('Chargement des membres...');
     const [membersResp, rankingResp, allyResp] = await Promise.all([
-      apiFetch(`/alliance/members?world=${WORLD}&id=${ALLY_ID}`),
+      apiFetch(`/alliance/members?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
       apiFetch(`/ranking/player?world=${WORLD}`),
-      apiFetch(`/alliance/info?world=${WORLD}&id=${ALLY_ID}`),
+      apiFetch(`/alliance/info?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
     ]);
 
     setStatus('Traitement des données...');
@@ -889,6 +977,92 @@ function renderHistorique() {
 }
 
 // loadData() appelé via auto-refresh ci-dessous
+
+// ─── ALLIANCE SWITCHER ───
+
+async function loadAllAlliances() {
+  try {
+    const data = await apiFetch(`/ranking/alliance?world=${WORLD}`);
+    const list = Array.isArray(data) ? data :
+                 data?.results || data?.alliances || [];
+    ALL_ALLIANCES = list.map(a => ({
+      id    : a.id || a.alliance_id,
+      name  : a.name || a.alliance_name || '',
+      rank  : parseInt(a.rank || 0),
+      points: parseInt(a.points || 0),
+      towns : parseInt(a.towns || 0),
+    })).filter(a => a.name).sort((a,b) => a.rank - b.rank);
+    console.log(`[NOC] ${ALL_ALLIANCES.length} alliances chargées`);
+  } catch(e) {
+    console.warn('[NOC] Impossible de charger les alliances:', e);
+  }
+}
+
+function fmt_k(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return (n/1000).toFixed(0) + 'k';
+  return String(n);
+}
+
+function renderAllyDropdown(query) {
+  const dropdown = document.getElementById('ally-dropdown');
+  if (!query && ALL_ALLIANCES.length === 0) { dropdown.classList.remove('open'); return; }
+
+  const q = query.toLowerCase().trim();
+  const filtered = q
+    ? ALL_ALLIANCES.filter(a => a.name.toLowerCase().includes(q)).slice(0, 20)
+    : ALL_ALLIANCES.slice(0, 20);
+
+  if (filtered.length === 0) { dropdown.classList.remove('open'); return; }
+
+  dropdown.innerHTML = filtered.map(a => `
+    <div class="ally-item ${a.id == ACTIVE_ALLY.id ? 'active' : ''}"
+         onclick="selectAlliance(${a.id}, ${JSON.stringify(a.name).replace(/"/g,"'")})">
+      <div>
+        <div class="ally-item-name">${a.name}</div>
+        <div class="ally-item-pts">${fmt_k(a.points)} pts · ${a.towns} villes</div>
+      </div>
+      <div class="ally-item-rank">#${a.rank}</div>
+    </div>
+  `).join('');
+
+  dropdown.classList.add('open');
+}
+
+function selectAlliance(id, name) {
+  ACTIVE_ALLY = { id, name };
+  document.getElementById('ally-search').value = '';
+  document.getElementById('ally-dropdown').classList.remove('open');
+  const badge = document.getElementById('ally-badge');
+  badge.textContent = name.length > 18 ? name.slice(0, 16) + '…' : name;
+
+  // Met à jour le titre
+  document.querySelector('h1').textContent = name;
+
+  // Recharge les données
+  loadData();
+}
+
+// Événements du champ de recherche
+document.addEventListener('DOMContentLoaded', () => {
+  const input    = document.getElementById('ally-search');
+  const dropdown = document.getElementById('ally-dropdown');
+
+  input.addEventListener('input', () => renderAllyDropdown(input.value));
+  input.addEventListener('focus', () => {
+    if (ALL_ALLIANCES.length > 0) renderAllyDropdown(input.value);
+  });
+
+  // Ferme le dropdown si clic ailleurs
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.ally-search-wrap')) {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  // Charge les alliances puis les données
+  loadAllAlliances().then(() => loadData()).then(() => startAutoRefresh());
+});
 </script>
 </body>
 </html>
