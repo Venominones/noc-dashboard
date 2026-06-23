@@ -1355,9 +1355,11 @@ function renderAllyDropdown(query) {
 
   if (filtered.length === 0) { dropdown.classList.remove('open'); return; }
 
-  dropdown.innerHTML = filtered.map(a => `
+  // Stocke les alliances filtrées pour accès par index (évite les problèmes d'apostrophes)
+  window._dropdownAlliances = filtered;
+  dropdown.innerHTML = filtered.map((a, idx) => `
     <div class="ally-item ${a.id == ACTIVE_ALLY.id ? 'active' : ''}"
-         onclick="selectAlliance(${a.id}, ${JSON.stringify(a.name).replace(/"/g,"'")})">
+         onclick="selectAllianceByIndex(${idx})">
       <div>
         <div class="ally-item-name">${a.name}</div>
         <div class="ally-item-pts">${fmt_k(a.points)} pts · ${a.towns} villes</div>
@@ -1367,6 +1369,11 @@ function renderAllyDropdown(query) {
   `).join('');
 
   dropdown.classList.add('open');
+}
+
+function selectAllianceByIndex(idx) {
+  const a = window._dropdownAlliances?.[idx];
+  if (a) selectAlliance(a.id, a.name);
 }
 
 function selectAlliance(id, name) {
