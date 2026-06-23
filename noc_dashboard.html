@@ -340,6 +340,7 @@
   <div class="header-meta">
     <div class="world-badge">FR183</div>
     <div class="last-update" id="last-update" style="margin-top:6px">—</div>
+    <div class="last-update" id="countdown" style="margin-top:2px;color:var(--gold-dim)">—</div>
     <button class="refresh-btn" onclick="loadData()" style="margin-top:8px">↺ Actualiser</button>
   </div>
 </header>
@@ -631,6 +632,7 @@ async function loadData() {
 
     document.getElementById('last-update').textContent =
       'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
+    startAutoRefresh();
     document.getElementById('loading').style.display = 'none';
 
   } catch(e) {
@@ -886,7 +888,7 @@ function renderHistorique() {
     historyData.length > 0 ? `${historyData.length} snapshot${historyData.length>1?'s':''} stockés` : 'Aucun historique';
 }
 
-loadData();
+// loadData() appelé via auto-refresh ci-dessous
 </script>
 </body>
 </html>
