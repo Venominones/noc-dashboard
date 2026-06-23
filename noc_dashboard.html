@@ -852,27 +852,27 @@ function saveHistory(members) {
   // Clé heure : "2026-06-23T06" → 1 snap max par heure pour le graphe long terme
   const hourKey = new Date(now).toISOString().slice(0, 13);
 
+  // Att/def ne peuvent QUE monter → prend le MAX entre la valeur API et le dernier snap connu
+  const lastSnap   = historyData[historyData.length - 1];
+  const lastAtk    = parseInt(lastSnap?.total_atk || 0);
+  const lastDef    = parseInt(lastSnap?.total_def || 0);
+  const newAtk     = parseInt(window._allyInfo?.att || 0) || members.reduce((s,m) => s+m.atk, 0);
+  const newDef     = parseInt(window._allyInfo?.def || 0) || members.reduce((s,m) => s+m.def, 0);
+
   const snap = {
     date      : date,
     hourKey   : hourKey,
     ts        : now,
     total_pts : members.reduce((s,m) => s+m.points, 0),
-    // Utilise info officielle pour att/def si dispo
-    total_atk : parseInt(window._allyInfo?.att || 0) || members.reduce((s,m) => s+m.atk, 0),
-    total_def : parseInt(window._allyInfo?.def || 0) || members.reduce((s,m) => s+m.def, 0),
+    total_atk : Math.max(newAtk, lastAtk),  // jamais inférieur au dernier connu
+    total_def : Math.max(newDef, lastDef),  // jamais inférieur au dernier connu
     members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
   };
 
-  // Purge les snapshots corrompus (ts=0 ou pts=0) ET les valeurs aberrantes
-  const validSnaps = historyData.filter(h =>
+  // Purge les snapshots corrompus (ts=0 ou pts=0)
+  const existing = historyData.filter(h =>
     parseInt(h.ts || 0) > 1700000000000 && parseInt(h.total_pts || 0) > 0
   );
-  // Calcule la médiane d'attaque pour détecter les aberrants
-  const atk_vals = validSnaps.map(h => h.total_atk).sort((a,b)=>a-b);
-  const med_atk  = atk_vals[Math.floor(atk_vals.length/2)] || 0;
-  const existing = med_atk > 0
-    ? validSnaps.filter(h => Math.abs(h.total_atk - med_atk) / med_atk < 0.25)
-    : validSnaps;
 
   // Stratégie de stockage :
   // - snapshots < 24h : on garde TOUS (refresh 5min = delta live)
@@ -886,7 +886,17 @@ function saveHistory(members) {
   const oldByHour = {};
   old.forEach(h => {
     const hk = h.hourKey || new Date(h.ts).toISOString().slice(0, 13);
-    if (!oldByHour[hk]) oldByHour[hk] = h;  // garde le premier
+    if (!oldByHour[hk]) {
+      oldByHour[hk] = h;
+    } else {
+      // Garde le MAX att/def de l'heure (att/def ne peuvent que monter)
+      oldByHour[hk] = {
+        ...oldByHour[hk],
+        total_atk: Math.max(oldByHour[hk].total_atk, h.total_atk),
+        total_def: Math.max(oldByHour[hk].total_def, h.total_def),
+        ts: h.ts,  // timestamp le plus récent de l'heure
+      };
+    }
   });
 
   // Ajoute le snap actuel aux récents
@@ -1179,8 +1189,44 @@ function renderHistorique() {
   if (historyData.length >= 2) {
     const labels = historyData.map(h => h.date.slice(5));
     const ptData = historyData.map(h => h.total_pts);
-    const atkData = historyData.map(h => h.total_atk);
-    const defData = historyData.map(h => h.total_def);
+
+    // Graphe att/def : utilise /alliance/history (1 valeur officielle/jour)
+    // sinon fallback sur historyData si pas encore dispo
+    const allyHist = window._allyHistory || [];
+    let atkData, defData;
+    if (allyHist.length >= 2) {
+      // Merge allyHistory avec les labels des snapshots
+      // Pour chaque label (date), prend la valeur depuis allyHistory si dispo
+      // Groupe les snaps par date pour prendre le MAX du jour
+      // Logique : att/def ne peuvent que monter (sauf départ membre)
+      // → la valeur max du jour = la plus récente et correcte
+      const byDate2 = {};
+      historyData.forEach(h => {
+        if (!byDate2[h.date]) byDate2[h.date] = { atk: 0, def: 0 };
+        byDate2[h.date].atk = Math.max(byDate2[h.date].atk, h.total_atk);
+        byDate2[h.date].def = Math.max(byDate2[h.date].def, h.total_def);
+      });
+      atkData = historyData.map(h => {
+        const ah = allyHist.find(a => a.date === h.date);
+        if (ah) return parseInt(ah.att);
+        return byDate2[h.date].atk;  // MAX du jour
+      });
+      defData = historyData.map(h => {
+        const ah = allyHist.find(a => a.date === h.date);
+        if (ah) return parseInt(ah.def);
+        return byDate2[h.date].def;  // MAX du jour
+      });
+    } else {
+      // Pas d'allyHistory → MAX du jour (att/def ne peuvent que monter)
+      const byDate = {};
+      historyData.forEach(h => {
+        if (!byDate[h.date]) byDate[h.date] = { atk: 0, def: 0 };
+        byDate[h.date].atk = Math.max(byDate[h.date].atk, h.total_atk);
+        byDate[h.date].def = Math.max(byDate[h.date].def, h.total_def);
+      });
+      atkData = historyData.map(h => byDate[h.date].atk);
+      defData = historyData.map(h => byDate[h.date].def);
+    }
 
     const ctxPts = document.getElementById('chart-points').getContext('2d');
     if (window._chartPts) window._chartPts.destroy();
