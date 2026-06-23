@@ -663,6 +663,8 @@ function showTab(name) {
     btn.classList.toggle('active', tabs[i] === name);
   });
   if (name === 'historique') renderHistorique();
+  // Si l'onglet historique est actif au moment du refresh, on le re-render aussi
+  window._activeTab = name;
 }
 
 function setStatus(msg) {
@@ -757,6 +759,8 @@ async function loadData() {
     renderMembres(members);
     renderCombat(members);
     renderTop5(members);
+    // Si l'onglet historique est affiché, le rafraîchir aussi
+    if (window._activeTab === 'historique') renderHistorique();
 
     document.getElementById('last-update').textContent =
       'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
@@ -1177,6 +1181,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Onglet actif par défaut
+  window._activeTab = 'membres';
   // Charge les alliances puis les données
   loadAllAlliances().then(() => loadData()).then(() => startAutoRefresh());
 });
