@@ -1183,11 +1183,41 @@ function getHistDelta(nom, days) {
 }
 
 function renderHistorique() {
-  // Graphique points
-  if (historyData.length < 2) {
-    // Pas assez de données — affiche un message dans les canvas
+  // ── SOURCE UNIQUE : /alliance/history pour att/def/pts, snapshots pour pts intra-jour ──
+  const allyHist = (window._allyHistory || []).sort((a,b) => a.date.localeCompare(b.date));
+
+  // Graphe att/def : 100% depuis /alliance/history
+  // + point d'aujourd'hui depuis _allyInfo si pas encore dans allyHistory
+  let combatLabels = allyHist.map(h => h.date.slice(5));
+  let atkData      = allyHist.map(h => parseInt(h.att));
+  let defData      = allyHist.map(h => parseInt(h.def));
+
+  // Ajoute aujourd'hui si pas encore dans allyHistory
+  const today = new Date().toISOString().split('T')[0];
+  const todayInHist = allyHist.some(h => h.date === today);
+  if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.att) {
+    combatLabels = [...combatLabels, today.slice(5)];
+    atkData      = [...atkData, parseInt(window._allyInfo.att)];
+    defData      = [...defData, parseInt(window._allyInfo.def)];
+  }
+
+  // Graphe points : depuis snapshots (intra-jour) + allyHistory pour les jours passés
+  // Si pas assez de snapshots → utilise allyHistory pour pts aussi
+  let ptLabels, ptData;
+  if (historyData.length >= 2) {
+    ptLabels = historyData.map(h => h.date.slice(5) + ' ' + new Date(h.ts).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}));
+    ptData   = historyData.map(h => h.total_pts);
+  } else if (allyHist.length >= 2) {
+    ptLabels = allyHist.map(h => h.date.slice(5));
+    ptData   = allyHist.map(h => parseInt(h.points));
+    if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.points) {
+      ptLabels = [...ptLabels, today.slice(5)];
+      ptData   = [...ptData, parseInt(window._allyInfo.points)];
+    }
+  } else {
     ['chart-points', 'chart-combat'].forEach(id => {
       const canvas = document.getElementById(id);
+      if (!canvas) return;
       const ctx2 = canvas.getContext('2d');
       ctx2.clearRect(0,0,canvas.width,canvas.height);
       ctx2.fillStyle = '#7A8099';
@@ -1197,48 +1227,9 @@ function renderHistorique() {
     });
     return;
   }
-  if (historyData.length >= 2) {
-    const labels = historyData.map(h => h.date.slice(5));
-    const ptData = historyData.map(h => h.total_pts);
 
-    // Graphe att/def : utilise /alliance/history (1 valeur officielle/jour)
-    // sinon fallback sur historyData si pas encore dispo
-    const allyHist = window._allyHistory || [];
-    let atkData, defData;
-    if (allyHist.length >= 2) {
-      // Merge allyHistory avec les labels des snapshots
-      // Pour chaque label (date), prend la valeur depuis allyHistory si dispo
-      // Groupe les snaps par date pour prendre le MAX du jour
-      // Logique : att/def ne peuvent que monter (sauf départ membre)
-      // → la valeur max du jour = la plus récente et correcte
-      const byDate2 = {};
-      historyData.forEach(h => {
-        if (!byDate2[h.date]) byDate2[h.date] = { atk: 0, def: 0 };
-        byDate2[h.date].atk = Math.max(byDate2[h.date].atk, h.total_atk);
-        byDate2[h.date].def = Math.max(byDate2[h.date].def, h.total_def);
-      });
-      atkData = historyData.map(h => {
-        const ah = allyHist.find(a => a.date === h.date);
-        if (ah) return parseInt(ah.att);
-        // Aujourd'hui pas encore dans allyHistory → utilise _allyInfo si alliance correcte
-        if (window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.att) {
-          return parseInt(window._allyInfo.att);
-        }
-        return null;  // pas de données fiables
-      });
-      defData = historyData.map(h => {
-        const ah = allyHist.find(a => a.date === h.date);
-        if (ah) return parseInt(ah.def);
-        if (window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.def) {
-          return parseInt(window._allyInfo.def);
-        }
-        return null;
-      });
-    } else {
-      // Pas d'allyHistory → att/def à null (pas de données fiables)
-      atkData = historyData.map(() => null);
-      defData = historyData.map(() => null);
-    }
+  if (true) {
+    const labels = ptLabels;
 
     const ctxPts = document.getElementById('chart-points').getContext('2d');
     if (window._chartPts) window._chartPts.destroy();
@@ -1287,26 +1278,31 @@ function renderHistorique() {
   }
 
 
-  // Tableau progression — fenêtres temporelles réelles
-  const curr   = historyData[historyData.length - 1];
-  const currTs = curr?.ts || Date.now();
+  // Tableau progression — utilise history[] de l'API par membre (toujours dispo)
+  // history[] = [{date, points, att, def}] pour les N derniers jours
+  const todayStr = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const date7j    = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
 
-  // Δ aujourd'hui : réutilise getSnapSinceToday() → cohérent avec l'onglet Membres
-  const now1d = getSnapSinceToday();
-
-  // Δ 7 jours : snap le plus proche d'il y a 7 jours, sinon le plus vieux dispo
-  const cutoff7d = currTs - 7 * 24 * 3600 * 1000;
-  const snaps7d  = historyData.filter(h => h.ts <= cutoff7d);
-  const now7d    = snaps7d.length > 0 ? snaps7d[snaps7d.length - 1] : historyData[0];
+  // Fonction : delta pts d'un membre entre deux dates via son history[]
+  function getMemberHistDelta(member, fromDate) {
+    if (!Array.isArray(member.history) || member.history.length === 0) return null;
+    // Valeur actuelle
+    const nowPts = member.points;
+    // Valeur à fromDate (ou la date la plus proche disponible)
+    const sorted = [...member.history].sort((a,b) => a.date.localeCompare(b.date));
+    // Cherche la dernière entrée AVANT ou AU fromDate
+    const past = sorted.filter(h => h.date <= fromDate).slice(-1)[0];
+    if (!past) return null;
+    return nowPts - parseInt(past.points || past.pts || 0);
+  }
 
   const tbody = document.getElementById('tbody-hist');
   const sortedMembers = [...members].sort((a,b) => b.points - a.points);
 
   tbody.innerHTML = sortedMembers.map(m => {
-    const d1  = now1d?.members?.find(x => x.nom === m.nom);
-    const d7  = now7d?.members?.find(x => x.nom === m.nom);
-    const delta1 = d1 ? m.points - d1.pts : null;
-    const delta7 = d7 ? m.points - d7.pts : null;
+    const delta1 = getMemberHistDelta(m, yesterday);
+    const delta7 = getMemberHistDelta(m, date7j);
 
     const d1Html = delta1 !== null ? `<span class="${delta1>0?'delta-pos':delta1<0?'delta-neg':'delta-zero'}">${delta1>0?'+':''}${fmt(delta1)}</span>` : '—';
     const d7Html = delta7 !== null ? `<span class="${delta7>0?'delta-pos':delta7<0?'delta-neg':'delta-zero'}">${delta7>0?'+':''}${fmt(delta7)}</span>` : '—';
