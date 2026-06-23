@@ -509,7 +509,7 @@
               <th class="r">Points</th>
               <th class="r">Villes</th>
               <th class="r">Rang 🌍</th>
-              <th class="r">Δ 24H</th>
+              <th class="r" id="th-delta">Δ 24H</th>
             </tr>
           </thead>
           <tbody id="tbody-membres"></tbody>
@@ -772,32 +772,48 @@ async function loadData() {
 }
 
 function saveHistory(members) {
-  const today = new Date().toISOString().split('T')[0];
+  const now   = Date.now();
+  const date  = new Date(now).toISOString().split('T')[0];
+  // Clé heure : "2026-06-23T06" → 1 snap max par heure pour le graphe long terme
+  const hourKey = new Date(now).toISOString().slice(0, 13);
+
   const snap = {
-    date      : today,
-    ts        : Date.now(),
+    date      : date,
+    hourKey   : hourKey,
+    ts        : now,
     total_pts : members.reduce((s,m) => s+m.points, 0),
     total_atk : members.reduce((s,m) => s+m.atk, 0),
     total_def : members.reduce((s,m) => s+m.def, 0),
     members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
   };
 
-  // Charge l'historique existant, PURGE les snapshots corrompus (ts=0 ou pts aberrants)
+  // Purge les snapshots corrompus (ts=0 ou pts=0)
   const existing = historyData.filter(h => {
-    const ts  = parseInt(h.ts  || 0);
-    const pts = parseInt(h.total_pts || 0);
-    // Snapshot valide : ts réel (après 2024) ET pts > 0
-    return ts > 1700000000000 && pts > 0;
+    return parseInt(h.ts || 0) > 1700000000000 && parseInt(h.total_pts || 0) > 0;
   });
 
-  // Écrase le snapshot d'aujourd'hui s'il existe déjà, sinon ajoute
-  const merged = {};
-  existing.forEach(h => { merged[h.date] = h; });
-  merged[today] = snap;  // toujours le snapshot frais du jour
+  // Stratégie de stockage :
+  // - snapshots < 24h : on garde TOUS (refresh 5min = delta live)
+  // - snapshots > 24h : on garde 1 par heure (économise de la place)
+  const cutoff24h = now - 24 * 3600 * 1000;
 
-  historyData = Object.values(merged)
-    .sort((a,b) => a.date.localeCompare(b.date))
-    .slice(-30);  // max 30 jours
+  const recent   = existing.filter(h => h.ts >= cutoff24h);
+  const old      = existing.filter(h => h.ts <  cutoff24h);
+
+  // Pour les vieux snaps : garde 1 par heure (le premier de chaque heure)
+  const oldByHour = {};
+  old.forEach(h => {
+    const hk = h.hourKey || new Date(h.ts).toISOString().slice(0, 13);
+    if (!oldByHour[hk]) oldByHour[hk] = h;  // garde le premier
+  });
+
+  // Ajoute le snap actuel aux récents
+  recent.push(snap);
+
+  historyData = [
+    ...Object.values(oldByHour).sort((a,b) => a.ts - b.ts).slice(-30*24), // max 30j d'historique
+    ...recent
+  ];
 
   localStorage.setItem(getHistKey(), JSON.stringify(historyData));
 }
@@ -859,6 +875,19 @@ function renderMembres(members) {
   const sorted = [...members].sort((a,b) => b.points - a.points);
   const maxPts = sorted[0]?.points || 1;
   document.getElementById('badge-membres').textContent = members.length + ' membres';
+
+  // Met à jour le libellé de la colonne delta selon l'âge du plus vieux snap
+  const thDelta = document.getElementById('th-delta');
+  if (thDelta && historyData.length >= 2) {
+    const newest = historyData[historyData.length - 1];
+    const oldest = historyData[0];
+    const diffMs = newest.ts - oldest.ts;
+    const diffH  = Math.round(diffMs / 3600000);
+    const diffM  = Math.round(diffMs / 60000);
+    if (diffMs < 3600000)      thDelta.textContent = 'Δ ' + diffM + 'min';
+    else if (diffMs < 86400000) thDelta.textContent = 'Δ ' + diffH + 'h';
+    else                        thDelta.textContent = 'Δ 24H';
+  }
 
   const tbody = document.getElementById('tbody-membres');
   tbody.innerHTML = sorted.map((m, i) => {
@@ -931,11 +960,22 @@ function renderTop5(members) {
 
 function getHistDelta(nom, days) {
   if (historyData.length < 2) return null;
-  const now  = historyData[historyData.length - 1];
-  const past = historyData[Math.max(0, historyData.length - 1 - days)];
-  if (!past || past.date === now.date) return null;
-  const nowM  = now.members?.find(m => m.nom === nom);
-  const pastM = past.members?.find(m => m.nom === nom);
+  const nowSnap  = historyData[historyData.length - 1];
+  const nowTs    = nowSnap.ts;
+  const windowMs = days * 24 * 3600 * 1000;
+
+  // Cherche le snap le plus ancien dans la fenêtre demandée
+  // Si days=1 : snap d'il y a ~24h, ou le plus vieux dispo si < 24h
+  const cutoff = nowTs - windowMs;
+  const candidates = historyData.slice(0, -1).filter(h => h.ts <= cutoff);
+  const pastSnap = candidates.length > 0
+    ? candidates[candidates.length - 1]   // le plus proche du cutoff
+    : historyData[0];                     // le plus vieux dispo (delta live)
+
+  if (!pastSnap || pastSnap.ts === nowSnap.ts) return null;
+
+  const nowM  = nowSnap.members?.find(m => m.nom === nom);
+  const pastM = pastSnap.members?.find(m => m.nom === nom);
   if (!nowM || !pastM) return null;
   return nowM.pts - pastM.pts;
 }
