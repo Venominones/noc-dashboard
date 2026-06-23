@@ -1188,12 +1188,14 @@ function renderHistorique() {
 
   // Graphe att/def : 100% depuis /alliance/history
   // + point d'aujourd'hui depuis _allyInfo si pas encore dans allyHistory
-  let combatLabels = allyHist.map(h => h.date.slice(5));
-  let atkData      = allyHist.map(h => parseInt(h.att));
-  let defData      = allyHist.map(h => parseInt(h.def));
+  const today = new Date().toISOString().split('T')[0];
+  // Limite aux 10 derniers jours pour lisibilité
+  const recentHist = allyHist.slice(-10);
+  let combatLabels = recentHist.map(h => h.date.slice(5));
+  let atkData      = recentHist.map(h => parseInt(h.att));
+  let defData      = recentHist.map(h => parseInt(h.def));
 
   // Ajoute aujourd'hui si pas encore dans allyHistory
-  const today = new Date().toISOString().split('T')[0];
   const todayInHist = allyHist.some(h => h.date === today);
   if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.att) {
     combatLabels = [...combatLabels, today.slice(5)];
@@ -1285,24 +1287,22 @@ function renderHistorique() {
   const date7j    = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
 
   // Fonction : delta pts d'un membre entre deux dates via son history[]
-  function getMemberHistDelta(member, fromDate) {
+  function getMemberHistDelta(member, fromDate, todayOnly) {
+    // history[] = deltas QUOTIDIENS (points gagnés ce jour-là, pas cumulés)
     if (!Array.isArray(member.history) || member.history.length === 0) return null;
-    // Valeur actuelle
-    const nowPts = member.points;
-    // Valeur à fromDate (ou la date la plus proche disponible)
-    const sorted = [...member.history].sort((a,b) => a.date.localeCompare(b.date));
-    // Cherche la dernière entrée AVANT ou AU fromDate
-    const past = sorted.filter(h => h.date <= fromDate).slice(-1)[0];
-    if (!past) return null;
-    return nowPts - parseInt(past.points || past.pts || 0);
+    const relevant = todayOnly
+      ? member.history.filter(h => h.date >= fromDate)   // aujourd'hui
+      : member.history.filter(h => h.date >= fromDate);  // depuis N jours
+    if (relevant.length === 0) return null;
+    return relevant.reduce((sum, h) => sum + parseInt(h.points || 0), 0);
   }
 
   const tbody = document.getElementById('tbody-hist');
   const sortedMembers = [...members].sort((a,b) => b.points - a.points);
 
   tbody.innerHTML = sortedMembers.map(m => {
-    const delta1 = getMemberHistDelta(m, yesterday);
-    const delta7 = getMemberHistDelta(m, date7j);
+    const delta1 = getMemberHistDelta(m, todayStr, true);   // aujourd'hui seulement
+    const delta7 = getMemberHistDelta(m, date7j, false);    // depuis 7 jours
 
     const d1Html = delta1 !== null ? `<span class="${delta1>0?'delta-pos':delta1<0?'delta-neg':'delta-zero'}">${delta1>0?'+':''}${fmt(delta1)}</span>` : '—';
     const d7Html = delta7 !== null ? `<span class="${delta7>0?'delta-pos':delta7<0?'delta-neg':'delta-zero'}">${delta7>0?'+':''}${fmt(delta7)}</span>` : '—';
