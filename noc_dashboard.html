@@ -1035,17 +1035,17 @@ function getOfficialDelta(key, days) {
   return nowVal - pastVal;
 }
 
-function getCombatDelta(nom, key) {
-  // Utilise les snapshots localStorage (même logique que Membres)
-  if (historyData.length < 2) return null;
-  const nowSnap  = historyData[historyData.length - 1];
-  const pastSnap = getSnapSinceToday();
-  if (!pastSnap || pastSnap.ts === nowSnap.ts) return null;
-  const nowM  = nowSnap.members?.find(m => m.nom === nom);
-  const pastM = pastSnap.members?.find(m => m.nom === nom);
-  if (!nowM || !pastM) return null;
-  // key = 'atk', 'def', 'cbt'
-  return (nowM[key] || 0) - (pastM[key] || 0);
+function getCombatDelta(memberObj, key) {
+  // Utilise member.history[] (delta quotidien API) — même source que GrepoData
+  // key = 'atk' → history[].att, 'def' → history[].def, 'cbt' → att+def
+  const today = new Date().toISOString().split('T')[0];
+  const hist = memberObj?.history || [];
+  const todayEntries = hist.filter(h => h.date === today);
+  if (todayEntries.length === 0) return null;
+  if (key === 'atk') return todayEntries.reduce((s,h) => s+parseInt(h.att||0), 0);
+  if (key === 'def') return todayEntries.reduce((s,h) => s+parseInt(h.def||0), 0);
+  if (key === 'cbt') return todayEntries.reduce((s,h) => s+parseInt(h.att||0)+parseInt(h.def||0), 0);
+  return null;
 }
 
 function renderCombatTable(tbodyId, members, key, rankKey) {
@@ -1054,7 +1054,7 @@ function renderCombatTable(tbodyId, members, key, rankKey) {
   const barClass = { atk:'bar-atk', def:'bar-def', cbt:'bar-cbt' }[key];
   document.getElementById(tbodyId).innerHTML = sorted.map((m, i) => {
     const pct   = Math.round(m[key] / max * 100);
-    const delta = getCombatDelta(m.nom, key);
+    const delta = getCombatDelta(m, key);
     let deltaHtml;
     if (delta === null) {
       deltaHtml = '<span class="delta-cbt-zero">—</span>';
