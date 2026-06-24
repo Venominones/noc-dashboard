@@ -353,6 +353,20 @@
     margin-top: 32px;
   }
 
+  /* ── INACTIVITÉ ── */
+  .inactive-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 6px;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .inactive-badge.red    { background: rgba(192,57,43,0.25); color: #e74c3c; border: 1px solid #c0392b; }
+  .inactive-badge.orange { background: rgba(230,126,34,0.25); color: #e67e22; border: 1px solid #e67e22; }
+  .inactive-badge.grey   { background: rgba(122,128,153,0.15); color: #7A8099; border: 1px solid #444; }
+
   /* ── ALLIANCE SWITCHER ── */
   .ally-switcher {
     position: relative;
@@ -668,7 +682,6 @@
               <th class="r">Pts actuels</th>
               <th class="r">Δ aujourd'hui</th>
               <th class="r">Δ 7 jours</th>
-              <th class="r">Tendance</th>
             </tr>
           </thead>
           <tbody id="tbody-hist"></tbody>
@@ -727,7 +740,6 @@ function showTab(name) {
     btn.classList.toggle('active', tabs[i] === name);
   });
   if (name === 'historique') renderHistorique();
-  // Si l'onglet historique est actif au moment du refresh, on le re-render aussi
   window._activeTab = name;
 }
 
@@ -833,6 +845,7 @@ async function loadData() {
     renderTop5(members);
     // Si l'onglet historique est affiché, le rafraîchir aussi
     if (window._activeTab === 'historique') renderHistorique();
+
 
     document.getElementById('last-update').textContent =
       'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
@@ -998,8 +1011,9 @@ function renderMembres(members) {
     const pct = Math.round(m.points / maxPts * 100);
     // Δ aujourd'hui depuis member.history[] (delta quotidien API) — fonctionne pour toutes les alliances
     const todayKey = new Date().toISOString().split('T')[0];
-    const todayPts = (m.history||[]).filter(h => h.date === todayKey).reduce((s,h)=>s+parseInt(h.points||0),0);
-    const hist = todayPts > 0 ? todayPts : null;
+    const todayEntries = (m.history||[]).filter(h => h.date === todayKey);
+    const todayPts = todayEntries.reduce((s,h)=>s+parseInt(h.points||0),0);
+    const hist = todayEntries.length > 0 ? todayPts : null;
     const deltaHtml = hist !== null
       ? `<span class="${hist > 0 ? 'delta-pos' : hist < 0 ? 'delta-neg' : 'delta-zero'}">${hist > 0 ? '+' : ''}${fmt(hist)}</span>`
       : '<span class="delta-zero">—</span>';
@@ -1065,9 +1079,17 @@ function renderCombatTable(tbodyId, members, key, rankKey) {
     } else {
       deltaHtml = '<span class="delta-cbt-zero">0</span>';
     }
+    const inactiveH = parseInt(m.hours_inactive || 0);
+    const inactiveBadge = inactiveH >= 48
+      ? `<span class="inactive-badge red" title="Inactif depuis ${inactiveH}h">⚠️ ${inactiveH}h</span>`
+      : inactiveH >= 12
+      ? `<span class="inactive-badge orange" title="Inactif depuis ${inactiveH}h">😴 ${inactiveH}h</span>`
+      : inactiveH > 0
+      ? `<span class="inactive-badge grey" title="Inactif depuis ${inactiveH}h">${inactiveH}h</span>`
+      : '';
     return `<tr>
       <td><span class="rank-badge ${i<3?'top3':''}">${i+1}</span></td>
-      <td class="name-cell">${m.nom}</td>
+      <td class="name-cell">${m.nom} ${inactiveBadge}</td>
       <td class="r pts">
         <div class="bar-wrap">
           <div class="bar-bg"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div>
@@ -1211,12 +1233,10 @@ function renderHistorique() {
     defData.push(parseInt(window._allyInfo.def));
   }
 
-  // Construit les séries pour le graphe points (snapshots intra-jour + history pour les jours passés)
+  // Graphe points : 100% depuis /alliance/history (même source que att/def)
+  // + aujourd'hui depuis _allyInfo si pas encore dans history
   let ptLabels, ptData;
-  if (historyData.length >= 2) {
-    ptLabels = historyData.map(h => new Date(h.ts).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
-    ptData   = historyData.map(h => h.total_pts);
-  } else if (allyHist.length >= 1) {
+  if (allyHist.length >= 1) {
     const pts10 = allyHist.slice(-10);
     ptLabels = pts10.map(h => h.date.slice(5));
     ptData   = pts10.map(h => parseInt(h.points));
@@ -1291,10 +1311,9 @@ function renderHistorique() {
   // Δ 7 jours = somme des points dans member.history depuis 7 jours
   function getMemberDelta(member, fromDate) {
     if (!Array.isArray(member.history) || member.history.length === 0) return null;
-    const sum = member.history
-      .filter(h => h.date >= fromDate)
-      .reduce((s,h) => s + parseInt(h.points||0), 0);
-    return sum > 0 ? sum : null;
+    const relevant = member.history.filter(h => h.date >= fromDate);
+    if (relevant.length === 0) return null;
+    return relevant.reduce((s,h) => s + parseInt(h.points||0), 0);
   }
 
   const sortedM = [...members].sort((a,b) => b.points - a.points);
@@ -1307,15 +1326,11 @@ function renderHistorique() {
     const fmtD = (v) => v === null ? '—' : v > 0 ? `<span class="delta-pos">+${fmt(v)}</span>` : `<span class="delta-neg">${fmt(v)}</span>`;
     // Sparkline tendance (7 derniers jours)
     const memberHist = [...(m.history||[])].sort((a,b)=>a.date.localeCompare(b.date)).slice(-7);
-    const trend = memberHist.length >= 2
-      ? (memberHist[memberHist.length-1].points > memberHist[0].points ? '📈' : '📉')
-      : '—';
     return `<tr>
       <td>${m.nom}</td>
       <td class="r">${fmt(m.points)}</td>
       <td class="r">${fmtD(d1)}</td>
       <td class="r">${fmtD(d7)}</td>
-      <td class="r">${trend}</td>
     </tr>`;
   }).join('');
 
@@ -1412,6 +1427,10 @@ function selectAlliance(id, name) {
 }
 
 // Événements du champ de recherche
+
+
+
+// ─── CONQUÊTES ───
 
 // ─── ALLIANCE SWITCHER : charge toutes les alliances ───
 async function loadAllAlliances() {
