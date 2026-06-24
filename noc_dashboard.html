@@ -1045,9 +1045,18 @@ function renderMembres(members) {
     const deltaHtml = hist !== null
       ? `<span class="${hist > 0 ? 'delta-pos' : hist < 0 ? 'delta-neg' : 'delta-zero'}">${hist > 0 ? '+' : ''}${fmt(hist)}</span>`
       : '<span class="delta-zero">—</span>';
+    // Badge inactivité uniquement dans Membres
+    const inactiveH = parseInt(m.hours_inactive || 0);
+    const inactiveBadge = inactiveH >= 48
+      ? `<span class="inactive-badge red" title="Inactif depuis ${inactiveH}h">⚠️ ${inactiveH}h</span>`
+      : inactiveH >= 12
+      ? `<span class="inactive-badge orange" title="Inactif depuis ${inactiveH}h">😴 ${inactiveH}h</span>`
+      : inactiveH > 0
+      ? `<span class="inactive-badge grey" title="Inactif depuis ${inactiveH}h">${inactiveH}h</span>`
+      : '';
     return `<tr>
       <td><span class="rank-badge ${rankCls}">${i+1}</span></td>
-      <td class="name-cell">${m.nom}</td>
+      <td class="name-cell">${m.nom} ${inactiveBadge}</td>
       <td class="r pts">
         <div class="bar-wrap">
           <div class="bar-bg"><div class="bar-fill bar-pts" style="width:${pct}%"></div></div>
