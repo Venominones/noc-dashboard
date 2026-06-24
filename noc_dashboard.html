@@ -802,11 +802,21 @@ async function loadData() {
     const rawList = Array.isArray(membersResp) ? membersResp :
                     membersResp?.results || membersResp?.members || membersResp?.players || [];
 
+    // Calcule fight_rank depuis rankMap (att+def de tous les joueurs classés)
+    // Trie par att+def décroissant et assigne le rang
+    const allRanked = Object.values(rankMap)
+      .map(p => ({ name: p.name||p.player_name||'', fight: parseInt(p.att||0)+parseInt(p.def||0) }))
+      .filter(p => p.fight > 0)
+      .sort((a,b) => b.fight - a.fight);
+    const fightRankMap = {};
+    allRanked.forEach((p,i) => { fightRankMap[p.name] = i + 1; });
+
     members = rawList.map(m => {
       const name = m.name || m.player_name || '';
       const rk   = rankMap[name] || {};
       return {
         nom:    name,
+        id:     m.id || m.grep_id,
         rang:   parseInt(m.rank || m.ranking || 0),
         points: parseInt(m.points || 0),
         villes: parseInt(m.towns || m.town_count || 0),
@@ -815,9 +825,36 @@ async function loadData() {
         def:    parseInt(m.def || 0),
         def_r:  parseInt(m.def_rank || 0),
         cbt:    parseInt(m.att||0) + parseInt(m.def||0),
+        cbt_r:  fightRankMap[name] || 0,  // rang mondial combattants (att+def)
+        hours_inactive: parseInt(m.hours_inactive || 0),
         history: Array.isArray(m.history) ? m.history : [],
       };
     }).filter(m => m.nom && m.points > 0);
+
+    // Charge les fight_rank depuis /player/info en parallèle (arrière-plan)
+    // On ne bloque pas le rendu — les rangs apparaissent dès qu'ils sont prêts
+    const memberIds = members.map(m => m.id).filter(Boolean);
+    Promise.all(
+      memberIds.map(id =>
+        apiFetch(`/player/info?world=${WORLD}&id=${id}`)
+          .then(d => ({ id, fight_rank: parseInt(d?.fight_rank || 0), att_rank: parseInt(d?.att_rank || 0), def_rank: parseInt(d?.def_rank || 0) }))
+          .catch(() => null)
+      )
+    ).then(results => {
+      results.forEach(r => {
+        if (!r) return;
+        const m = members.find(x => x.id === r.id);
+        if (m) {
+          m.cbt_r = r.fight_rank;
+          // Mise à jour att_rank et def_rank aussi (plus précis que members endpoint)
+          if (r.att_rank > 0) m.atk_r = r.att_rank;
+          if (r.def_rank > 0) m.def_r = r.def_rank;
+        }
+      });
+      // Re-render combat si actif
+      if (window._activeTab === 'combat') renderCombat(members);
+      if (window._activeTab === 'membres') renderMembres(members);
+    }).catch(() => {});
 
     // Alliance info
     const allyInfo = allyResp?.alliance || allyResp || {};
@@ -994,16 +1031,7 @@ function renderMembres(members) {
   const maxPts = sorted[0]?.points || 1;
   document.getElementById('badge-membres').textContent = members.length + ' membres';
 
-  // Met à jour le libellé de la colonne delta selon l'âge du plus vieux snap
-  const thDelta = document.getElementById('th-delta');
-  if (thDelta && historyData.length >= 2) {
-    const newest = historyData[historyData.length - 1];
-    const oldest = historyData[0];
-    const diffMs = newest.ts - oldest.ts;
-    const diffH  = Math.round(diffMs / 3600000);
-    const diffM  = Math.round(diffMs / 60000);
-    thDelta.textContent = 'Δ Aujourd\'hui';
-  }
+  // Δ aujourd'hui = données du jour depuis member.history[]
 
   const tbody = document.getElementById('tbody-membres');
   tbody.innerHTML = sorted.map((m, i) => {
@@ -1079,17 +1107,9 @@ function renderCombatTable(tbodyId, members, key, rankKey) {
     } else {
       deltaHtml = '<span class="delta-cbt-zero">0</span>';
     }
-    const inactiveH = parseInt(m.hours_inactive || 0);
-    const inactiveBadge = inactiveH >= 48
-      ? `<span class="inactive-badge red" title="Inactif depuis ${inactiveH}h">⚠️ ${inactiveH}h</span>`
-      : inactiveH >= 12
-      ? `<span class="inactive-badge orange" title="Inactif depuis ${inactiveH}h">😴 ${inactiveH}h</span>`
-      : inactiveH > 0
-      ? `<span class="inactive-badge grey" title="Inactif depuis ${inactiveH}h">${inactiveH}h</span>`
-      : '';
     return `<tr>
       <td><span class="rank-badge ${i<3?'top3':''}">${i+1}</span></td>
-      <td class="name-cell">${m.nom} ${inactiveBadge}</td>
+      <td class="name-cell">${m.nom}</td>
       <td class="r pts">
         <div class="bar-wrap">
           <div class="bar-bg"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div>
