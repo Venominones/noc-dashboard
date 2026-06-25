@@ -246,6 +246,39 @@
   }
 
   /* ── REFRESH BTN ── */
+  .discord-btn {
+    background: #5865F2;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+    transition: background 0.2s;
+  }
+  .discord-btn:hover { background: #4752c4; }
+  .discord-btn:disabled { opacity: 0.6; cursor: wait; }
+
+  #discord-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #5865F2;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 4px 20px rgba(88,101,242,0.5);
+    animation: fadeIn 0.3s ease;
+  }
+
   .refresh-btn {
     background: transparent;
     border: 1px solid var(--gold-dim);
@@ -352,6 +385,22 @@
     border-top: 1px solid var(--border);
     margin-top: 32px;
   }
+
+  /* ── PAGINATION ── */
+  .pag-btn {
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    min-width: 28px;
+    transition: background 0.15s;
+  }
+  .pag-btn:hover:not(:disabled) { background: var(--gold); color: #000; }
+  .pag-btn.active { background: var(--gold); color: #000; font-weight: 700; border-color: var(--gold); }
+  .pag-btn:disabled { opacity: 0.35; cursor: default; }
 
   /* ── INACTIVITÉ ── */
   .inactive-badge {
@@ -477,6 +526,7 @@
       <div class="last-update" id="last-update" style="margin-top:6px">—</div>
       <div class="last-update" id="countdown" style="margin-top:2px;color:var(--gold-dim)">—</div>
       <button class="refresh-btn" onclick="loadData()" style="margin-top:8px">↺ Actualiser</button>
+      <button class="discord-btn" onclick="generateDiscordReport()" style="margin-top:8px" title="Copier rapport Discord">📋 Discord</button>
     </div>
   </div>
 </header>
@@ -539,6 +589,53 @@
     <button class="tab-btn" onclick="showTab('combat')">⚔️ Combat</button>
     <button class="tab-btn" onclick="showTab('top5')">🏆 Top 5</button>
     <button class="tab-btn" onclick="showTab('historique')">📈 Historique</button>
+    <button class="tab-btn" onclick="showTab('conquetes')">🏰 Conquêtes</button>
+  </div>
+
+  <!-- TAB CONQUÊTES -->
+  <div id="tab-conquetes" style="display:none">
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <span class="card-title">🏰 Conquêtes</span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:11px;color:var(--text-dim)">
+            <input type="checkbox" id="cq-friendly" checked onchange="window._cqPage=1;renderConquetes()"> 🤝 Friendly
+          </label>
+          <label style="font-size:11px;color:var(--text-dim)">
+            <input type="checkbox" id="cq-enemy" checked onchange="window._cqPage=1;renderConquetes()"> ⚔️ Ennemi
+          </label>
+          <label style="font-size:11px;color:var(--text-dim)">
+            <input type="checkbox" id="cq-internal" checked onchange="window._cqPage=1;renderConquetes()"> 🔄 Interne
+          </label>
+          <select id="cq-perpage" onchange="window._cqPage=1;renderConquetes()" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:11px">
+            <option value="10">10 / page</option>
+            <option value="20">20 / page</option>
+            <option value="30" selected>30 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+          </select>
+          <span class="card-badge" id="badge-conquetes">—</span>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="member-table" id="table-conquetes">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Ville</th>
+              <th class="r">Pts</th>
+              <th>Joueur</th>
+              <th>Ancien proprio</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-conquetes">
+            <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-dim)">Cliquer sur l'onglet pour charger</td></tr>
+          </tbody>
+        </table>
+        <div id="cq-pagination" style="padding:12px 16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border)"></div>
+      </div>
+    </div>
   </div>
 
   <!-- TAB MEMBRES -->
@@ -732,14 +829,15 @@ async function apiFetch(path) {
 }
 
 function showTab(name) {
-  ['membres','combat','top5','historique'].forEach(t => {
+  ['membres','combat','top5','historique','conquetes'].forEach(t => {
     document.getElementById('tab-' + t).style.display = t === name ? '' : 'none';
   });
   document.querySelectorAll('.tab-btn').forEach((btn, i) => {
-    const tabs = ['membres','combat','top5','historique'];
+    const tabs = ['membres','combat','top5','historique','conquetes'];
     btn.classList.toggle('active', tabs[i] === name);
   });
   if (name === 'historique') renderHistorique();
+  if (name === 'conquetes') renderConquetes();
   window._activeTab = name;
 }
 
@@ -1450,6 +1548,7 @@ function selectAlliance(id, name) {
   window._allyInfo   = null;
   window._allyInfoId = null;
   window._allyHistory = [];
+  _conquestCache = {};
   loadHistoryData();
   // Recharge les données
   loadData();
@@ -1460,6 +1559,276 @@ function selectAlliance(id, name) {
 
 
 // ─── CONQUÊTES ───
+
+
+// ─── RAPPORT DISCORD ───
+async function generateDiscordReport() {
+  const btn = document.querySelector('.btn-discord');
+  if (btn) { btn.textContent = '⏳ Génération...'; btn.disabled = true; }
+
+  try {
+    const today    = new Date().toISOString().split('T')[0];
+    const allyName = ACTIVE_ALLY.name;
+    const allyId   = ACTIVE_ALLY.id;
+
+    // Données de base depuis ce qui est déjà chargé
+    const info = window._allyInfo || {};
+    const hist = (window._allyHistory || []).sort((a,b)=>a.date.localeCompare(b.date));
+    const last  = hist[hist.length-1];
+    const prev  = hist[hist.length-2];
+    const j7    = hist[hist.length-8];
+
+    // Scoreboard du jour (conquêtes/pertes)
+    let sbData = {};
+    try {
+      sbData = await apiFetch(`/scoreboard/alliance?world=${WORLD}&id=${allyId}`);
+    } catch(e) {}
+    const conToday = (sbData?.con||[]).find(a=>a.i==allyId)?.s || 0;
+    const losToday = (sbData?.los||[]).find(a=>a.i==allyId)?.s || 0;
+    const attToday = (sbData?.att||[]).find(a=>a.i==allyId)?.s || 0;
+    const defToday = (sbData?.def||[]).find(a=>a.i==allyId)?.s || 0;
+
+    // Rang dans le scoreboard du jour
+    const attRankToday = (sbData?.att||[]).findIndex(a=>a.i==allyId) + 1;
+    const conRankToday = (sbData?.con||[]).findIndex(a=>a.i==allyId) + 1;
+
+    // Deltas depuis history
+    const dPts  = last && prev ? last.points - prev.points : 0;
+    const dAtt  = last && prev ? last.att    - prev.att    : 0;
+    const dDef  = last && prev ? last.def    - prev.def    : 0;
+    const dPts7 = last && j7   ? last.points - j7.points   : 0;
+
+    // Top 3 attaquants du jour
+    const topAtk = [...members]
+      .filter(m => {
+        const todayH = (m.history||[]).filter(h=>h.date===today);
+        m._todayAtk = todayH.reduce((s,h)=>s+parseInt(h.att||0),0);
+        return m._todayAtk > 0;
+      })
+      .sort((a,b) => b._todayAtk - a._todayAtk)
+      .slice(0,3);
+
+    // Top 3 défenseurs du jour
+    const topDef = [...members]
+      .filter(m => {
+        const todayH = (m.history||[]).filter(h=>h.date===today);
+        m._todayDef = todayH.reduce((s,h)=>s+parseInt(h.def||0),0);
+        return m._todayDef > 0;
+      })
+      .sort((a,b) => b._todayDef - a._todayDef)
+      .slice(0,3);
+
+    // Membres inactifs (> 24h)
+    const inactifs = [...members]
+      .filter(m => parseInt(m.hours_inactive||0) >= 24)
+      .sort((a,b) => parseInt(b.hours_inactive||0) - parseInt(a.hours_inactive||0));
+
+    // Membres avec perte de points (villes perdues)
+    const losers = [...members]
+      .filter(m => {
+        const todayPts = (m.history||[]).filter(h=>h.date===today).reduce((s,h)=>s+parseInt(h.points||0),0);
+        m._todayPts = todayPts;
+        return todayPts < 0;
+      })
+      .sort((a,b) => a._todayPts - b._todayPts);
+
+    // Formatage des nombres
+    const fK = v => Math.abs(v) >= 1000 ? (v/1000).toFixed(1)+'k' : String(v);
+    const sign = v => v > 0 ? '+'+fK(v) : fK(v);
+
+    // Date lisible
+    const dateStr = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+
+    // ── Construction du message Discord ──
+    const lines = [];
+    lines.push(`## ⚔️ Rapport ${allyName} — ${dateStr}`);
+    lines.push('');
+
+    // KPIs généraux
+    lines.push('**📊 Points alliance**');
+    lines.push(`> Total : **${fmt(info.points||last?.points||0)}** pts (#${info.rank||'?'} mondial)`);
+    if (dPts) lines.push(`> Hier→Aujourd'hui : **${sign(dPts)}** pts`);
+    if (dPts7) lines.push(`> Cette semaine : **${sign(dPts7)}** pts`);
+    lines.push('');
+
+    // Combat du jour
+    lines.push("**⚔️ Combat aujourd'hui**");
+    if (attToday) lines.push(`> Attaque : **${fK(attToday)}** pts${attRankToday ? ' (#'+attRankToday+' mondial)' : ''}`);
+    if (defToday) lines.push(`> Défense : **${fK(defToday)}** pts`);
+    lines.push('');
+
+    // Conquêtes/Pertes
+    lines.push('**🏰 Villes**');
+    lines.push(`> Prises : **${conToday}** | Perdues : **${losToday}** | Bilan net : **${conToday-losToday >= 0 ? '+' : ''}${conToday-losToday}**`);
+    if (losers.length > 0) {
+      lines.push(`> ⚠️ Joueurs ayant perdu des villes : ${losers.map(m=>`**${m.nom}** (${fK(m._todayPts)} pts)`).join(', ')}`);
+    }
+    lines.push('');
+
+    // Top attaquants
+    if (topAtk.length > 0) {
+      lines.push('**🔴 Top attaquants du jour**');
+      topAtk.forEach((m,i) => lines.push(`> ${['🥇','🥈','🥉'][i]} **${m.nom}** : +${fK(m._todayAtk)} pts atk`));
+      lines.push('');
+    }
+
+    // Top défenseurs
+    if (topDef.length > 0) {
+      lines.push('**🔵 Top défenseurs du jour**');
+      topDef.forEach((m,i) => lines.push(`> ${['🥇','🥈','🥉'][i]} **${m.nom}** : +${fK(m._todayDef)} pts déf`));
+      lines.push('');
+    }
+
+    // Inactifs
+    if (inactifs.length > 0) {
+      lines.push('**😴 Membres inactifs**');
+      inactifs.forEach(m => {
+        const h = parseInt(m.hours_inactive||0);
+        const badge = h >= 48 ? '⚠️' : '😴';
+        lines.push(`> ${badge} **${m.nom}** — inactif depuis **${h}h**`);
+      });
+      lines.push('');
+    }
+
+    lines.push(`*Généré automatiquement depuis le dashboard NOC · ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}*`);
+
+    const rapport = lines.join('\n');
+
+    // Copie dans le presse-papier
+    await navigator.clipboard.writeText(rapport);
+
+    // Toast
+    const toast = document.getElementById('discord-toast');
+    if (toast) {
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+  } catch(e) {
+    console.error('Rapport Discord:', e);
+    alert('Erreur lors de la génération du rapport : ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '📋 Discord'; btn.disabled = false; }
+  }
+}
+
+
+// ─── CONQUÊTES ───
+let _conquestCache = {};  // cache par alliance id
+
+async function renderConquetes() {
+  const tbody = document.getElementById('tbody-conquetes');
+  const badge = document.getElementById('badge-conquetes');
+  if (!tbody) return;
+
+  const allyId = ACTIVE_ALLY.id;
+  const perPage = parseInt(document.getElementById('cq-perpage')?.value || 30);
+
+  // Filtre actifs
+  const showFriendly = document.getElementById('cq-friendly')?.checked ?? true;
+  const showEnemy    = document.getElementById('cq-enemy')?.checked ?? true;
+  const showInternal = document.getElementById('cq-internal')?.checked ?? true;
+
+  // Charge TOUTES les conquêtes si pas encore en cache
+  if (!_conquestCache[allyId]) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-dim)">⏳ Chargement de toutes les conquêtes...</td></tr>';
+    try {
+      // Charge la première page pour connaître le total
+      const first = await fetch(
+        `https://api.grepodata.com/conquest?type=alliance&world=${WORLD}&id=${allyId}&from=0&size=50&tfriendly=true&tinternal=true&tenemy=true&date=_&city=_&old_owner=_&new_owner=_`
+      ).then(r => r.json());
+      const total = first?.count || 0;
+      let all = first?.conq || [];
+
+      // Charge les pages suivantes en parallèle
+      if (total > 50) {
+        const offsets = [];
+        for (let off = 50; off < total; off += 50) offsets.push(off);
+        const pages = await Promise.all(
+          offsets.map(off =>
+            fetch(`https://api.grepodata.com/conquest?type=alliance&world=${WORLD}&id=${allyId}&from=${off}&size=50&tfriendly=true&tinternal=true&tenemy=true&date=_&city=_&old_owner=_&new_owner=_`)
+              .then(r => r.json()).then(d => d?.conq || []).catch(() => [])
+          )
+        );
+        all = [all, ...pages].flat();
+      }
+      _conquestCache[allyId] = all;
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#e74c3c">Erreur de chargement</td></tr>';
+      return;
+    }
+  }
+
+  const all = _conquestCache[allyId];
+
+  // Filtre
+  const filtered = all.filter(c => {
+    if (c.type === 'friendly' && !showFriendly) return false;
+    if (c.type === 'enemy'    && !showEnemy)    return false;
+    if (c.type === 'internal' && !showInternal) return false;
+    return true;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filtered.length / perPage);
+  if (!window._cqPage || window._cqPage > totalPages) window._cqPage = 1;
+  const page     = window._cqPage;
+  const pageStart = (page - 1) * perPage;
+  const pageEnd   = Math.min(pageStart + perPage, filtered.length);
+  const pageItems = filtered.slice(pageStart, pageEnd);
+
+  badge.textContent = `${filtered.length} conquêtes (${all.length} total)`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-dim)">Aucune conquête pour ce filtre</td></tr>';
+    document.getElementById('cq-pagination').innerHTML = '';
+    return;
+  }
+
+  // Rendu des lignes
+  tbody.innerHTML = pageItems.map(c => {
+    const date = new Date(c.time + 'Z').toLocaleString('fr-FR', {
+      day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'
+    });
+    const isGain    = c.n_a_id === allyId;
+    const typeCls   = c.type === 'enemy'    ? (isGain ? 'color:#27ae60' : 'color:#e74c3c')
+                    : c.type === 'friendly' ? 'color:#f39c12'
+                    : 'color:#7A8099';
+    const typeLabel = c.type === 'enemy'    ? (isGain ? '⚔️ Prise'  : '💀 Perdue')
+                    : c.type === 'friendly' ? '🤝 Friendly'
+                    : '🔄 Interne';
+    return `<tr>
+      <td style="font-size:11px;white-space:nowrap">${date}</td>
+      <td style="font-weight:600">${c.town_name || '—'}</td>
+      <td class="r" style="color:var(--gold)">${c.points ? fmt(c.points) : '—'}</td>
+      <td>${c.n_p_name || '—'}</td>
+      <td style="color:var(--text-dim)">${c.o_p_name || '—'}</td>
+      <td style="${typeCls};font-weight:600">${typeLabel}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination controls
+  const pag = document.getElementById('cq-pagination');
+  if (!pag) return;
+
+  let pagHtml = `<span style="color:var(--text-dim);font-size:12px">${pageStart+1}-${pageEnd} sur ${filtered.length}</span> `;
+
+  // Bouton précédent
+  pagHtml += `<button class="pag-btn" onclick="window._cqPage=Math.max(1,${page}-1);renderConquetes()" ${page<=1?'disabled':''}>◀</button> `;
+
+  // Numéros de page (max 7 affichés)
+  const rangeStart = Math.max(1, Math.min(page-3, totalPages-6));
+  const rangeEnd   = Math.min(totalPages, rangeStart+6);
+  if (rangeStart > 1) pagHtml += `<button class="pag-btn" onclick="window._cqPage=1;renderConquetes()">1</button> <span style="color:var(--text-dim)">…</span> `;
+  for (let p = rangeStart; p <= rangeEnd; p++) {
+    pagHtml += `<button class="pag-btn ${p===page?'active':''}" onclick="window._cqPage=${p};renderConquetes()">${p}</button> `;
+  }
+  if (rangeEnd < totalPages) pagHtml += `<span style="color:var(--text-dim)">…</span> <button class="pag-btn" onclick="window._cqPage=${totalPages};renderConquetes()">${totalPages}</button> `;
+
+  // Bouton suivant
+  pagHtml += `<button class="pag-btn" onclick="window._cqPage=Math.min(${totalPages},${page}+1);renderConquetes()" ${page>=totalPages?'disabled':''}>▶</button>`;
+  pag.innerHTML = pagHtml;
+}
 
 // ─── ALLIANCE SWITCHER : charge toutes les alliances ───
 async function loadAllAlliances() {
@@ -1507,5 +1876,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAllAlliances().then(() => loadData()).then(() => startAutoRefresh());
 });
 </script>
+<div id="discord-toast">✅ Rapport copié dans le presse-papier !</div>
 </body>
 </html>
