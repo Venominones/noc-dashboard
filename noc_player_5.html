@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profil Joueur — fr183</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg1:#0d0f1a; --bg2:#141620; --bg3:#1a1d2e; --bg4:#252a40;
+    --border:#2a2e45; --text:#ccc; --text-dim:#7A8099;
+    --gold:#C9A84C; --gold-dim:#8a6f2e;
+    --green:#27ae60; --red:#e74c3c; --orange:#e67e22; --blue:#2E86AB;
+  }
+  body { background:var(--bg1); color:var(--text); font-family:Inter,'Segoe UI',sans-serif; font-size:13px; min-height:100vh; }
+
+  /* ── HEADER ── */
+  header {
+    background:linear-gradient(135deg,var(--bg2),var(--bg3));
+    border-bottom:1px solid var(--border);
+    padding:14px 24px; display:flex; align-items:center; gap:16px;
+  }
+  .back-btn {
+    background:var(--bg4); border:1px solid var(--border); border-radius:6px;
+    color:var(--text-dim); padding:5px 12px; font-size:12px; cursor:pointer;
+    text-decoration:none; display:flex; align-items:center; gap:5px;
+    transition:border-color .2s, color .2s;
+  }
+  .back-btn:hover { border-color:var(--gold); color:var(--gold); }
+  .header-name { font-size:20px; font-weight:800; color:var(--gold); letter-spacing:.5px; }
+  .header-world { font-size:12px; color:var(--text-dim); margin-left:4px; }
+  .header-ally { font-size:12px; color:var(--text-dim); margin-left:auto; }
+  .header-ally a { color:var(--gold); text-decoration:none; }
+  .header-ally a:hover { text-decoration:underline; }
+
+  /* ── LOADER ── */
+  #loader { display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh; gap:16px; }
+  .spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--gold); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  /* ── MAIN LAYOUT ── */
+  main { max-width:1200px; margin:0 auto; padding:20px 16px; display:none; }
+  main.loaded { display:block; }
+
+  /* ── KPI STRIP ── */
+  .kpi-strip {
+    display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-bottom:16px;
+  }
+  .kpi {
+    background:var(--bg3); border:1px solid var(--border); border-radius:8px;
+    padding:12px 14px; text-align:center;
+  }
+  .kpi-label { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.6px; margin-bottom:4px; }
+  .kpi-val   { font-size:22px; font-weight:800; color:var(--gold); line-height:1; }
+  .kpi-sub   { font-size:10px; color:var(--text-dim); margin-top:3px; }
+  .kpi-rank  { font-size:11px; color:var(--blue); font-weight:600; margin-top:2px; }
+  .kpi-best  { font-size:9px; color:var(--gold-dim); margin-top:2px; }
+
+  /* ── GRID 2 COL ── */
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+  .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:14px; }
+
+  /* ── CARDS ── */
+  .card { background:var(--bg3); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+  .card-header {
+    background:var(--bg4); border-bottom:1px solid var(--border);
+    padding:10px 16px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .card-title { font-size:12px; font-weight:700; color:var(--gold); letter-spacing:.3px; }
+  .card-badge { background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:2px 8px; font-size:10px; color:var(--text-dim); }
+  .card-body  { padding:14px 16px; }
+
+  /* ── DELTA STATS ── */
+  .delta-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .delta-box { background:var(--bg4); border-radius:6px; padding:10px 12px; text-align:center; }
+  .delta-label { font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px; }
+  .delta-val   { font-size:16px; font-weight:700; margin-top:4px; }
+  .delta-pos   { color:var(--green); }
+  .delta-neg   { color:var(--red); }
+  .delta-zero  { color:var(--text-dim); }
+
+  /* ── GRAPHE ── */
+  .chart-wrap { position:relative; height:180px; padding:8px 0 0; }
+  canvas { display:block; width:100% !important; }
+
+  /* ── HEATMAP ── */
+  .heatmap-grid {
+    display:grid; grid-template-columns:repeat(24,1fr); gap:2px;
+    padding:4px 0;
+  }
+  .heatmap-label-row { display:grid; grid-template-columns:repeat(24,1fr); gap:2px; margin-bottom:3px; }
+  .heatmap-hour { font-size:8px; color:var(--text-dim); text-align:center; }
+  .heatmap-cell { height:16px; border-radius:2px; background:var(--bg4); }
+
+  /* ── TABLEAU CONQUÊTES ── */
+  .conq-table { width:100%; border-collapse:collapse; }
+  .conq-table th { background:var(--bg4); color:var(--text-dim); font-size:10px; font-weight:600; padding:6px 8px; text-align:left; text-transform:uppercase; letter-spacing:.5px; }
+  .conq-table td { padding:6px 8px; border-bottom:1px solid var(--border); font-size:11px; }
+  .conq-table tr:last-child td { border-bottom:none; }
+  .conq-table tr:hover td { background:var(--bg4); }
+  .type-enemy-gain { color:var(--green); font-weight:600; }
+  .type-enemy-loss { color:var(--red); font-weight:600; }
+  .type-friendly   { color:var(--orange); }
+  .type-internal   { color:var(--text-dim); }
+
+  /* ── PROFIL ── */
+  .profile-row { display:flex; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border); }
+  .profile-row:last-child { border-bottom:none; }
+  .profile-key { color:var(--text-dim); font-size:11px; width:140px; flex-shrink:0; }
+  .profile-val { color:var(--text); font-size:11px; font-weight:600; }
+
+  /* ── INACTIVE / GHOST ── */
+  .badge-inactive { background:#e67e2222; color:var(--orange); border:1px solid var(--orange); border-radius:10px; padding:2px 8px; font-size:10px; font-weight:600; }
+  .badge-ghost    { background:#e74c3c22; color:var(--red);    border:1px solid var(--red);    border-radius:10px; padding:2px 8px; font-size:10px; font-weight:600; }
+  .badge-active   { background:#27ae6022; color:var(--green);  border:1px solid var(--green);  border-radius:10px; padding:2px 8px; font-size:10px; font-weight:600; }
+
+  /* ── TABS ── */
+  .tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:14px; }
+  .tab-btn { background:none; border:none; border-bottom:2px solid transparent; color:var(--text-dim); padding:8px 18px; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--gold); border-bottom-color:var(--gold); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* ── ERROR ── */
+  .error-box { background:#e74c3c22; border:1px solid var(--red); border-radius:8px; padding:16px; text-align:center; color:var(--red); margin:20px; }
+
+  @media (max-width:800px) {
+    .kpi-strip { grid-template-columns:repeat(3,1fr); }
+    .grid2, .grid3 { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back-btn" href="noc_dashboard.html">← Retour alliance</a>
+  <div>
+    <span class="header-name" id="h-name">Chargement...</span>
+    <span class="header-world">· fr183</span>
+  </div>
+  <div id="h-status"></div>
+  <div class="header-ally" id="h-ally"></div>
+</header>
+
+<div id="loader">
+  <div class="spinner"></div>
+  <span style="color:var(--text-dim)">Chargement du profil...</span>
+</div>
+
+<main id="main">
+  <!-- KPI -->
+  <div class="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-label">Points</div>
+      <div class="kpi-val" id="kpi-pts">—</div>
+      <div class="kpi-rank" id="kpi-pts-rank">—</div>
+      <div class="kpi-best" id="kpi-pts-best"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Villes</div>
+      <div class="kpi-val" id="kpi-towns">—</div>
+      <div class="kpi-best" id="kpi-towns-best"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Attaque</div>
+      <div class="kpi-val" id="kpi-att">—</div>
+      <div class="kpi-rank" id="kpi-att-rank">—</div>
+      <div class="kpi-best" id="kpi-att-best"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Défense</div>
+      <div class="kpi-val" id="kpi-def">—</div>
+      <div class="kpi-rank" id="kpi-def-rank">—</div>
+      <div class="kpi-best" id="kpi-def-best"></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Combattants</div>
+      <div class="kpi-val" id="kpi-fight">—</div>
+      <div class="kpi-rank" id="kpi-fight-rank">—</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Statut</div>
+      <div style="margin-top:8px" id="kpi-status">—</div>
+      <div class="kpi-sub" id="kpi-inactive"></div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('overview')">📊 Vue générale</button>
+    <button class="tab-btn" onclick="showTab('history')">📈 Historique</button>
+    <button class="tab-btn" onclick="showTab('conquests')">🏰 Conquêtes</button>
+  </div>
+
+  <!-- TAB OVERVIEW -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="grid3">
+      <!-- Delta hier -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚡ Progression aujourd'hui</span></div>
+        <div class="card-body">
+          <div class="delta-grid" id="delta-1j"></div>
+        </div>
+      </div>
+      <!-- Delta 7j -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">📅 7 derniers jours</span></div>
+        <div class="card-body">
+          <div class="delta-grid" id="delta-7j"></div>
+        </div>
+      </div>
+      <!-- Delta 21j -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">📅 21 derniers jours</span></div>
+        <div class="card-body">
+          <div class="delta-grid" id="delta-21j"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <!-- Profil -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">👤 Informations</span></div>
+        <div class="card-body" id="profile-box"></div>
+      </div>
+      <!-- Heatmap -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🕐 Activité (7 jours)</span>
+          <span class="card-badge">Par heure UTC</span>
+        </div>
+        <div class="card-body" id="heatmap-box">
+          <div style="color:var(--text-dim);font-size:11px;text-align:center;padding:20px">Données non disponibles</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB HISTORY -->
+  <div id="tab-history" class="tab-content">
+    <div class="grid3" style="margin-bottom:14px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">📈 Points (21j)</span></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-pts"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚔️ Attaque (21j)</span></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-att"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🛡️ Défense (21j)</span></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-def"></canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">📊 Tableau historique</span></div>
+      <div class="card-body" style="padding:0">
+        <table class="conq-table" id="hist-table">
+          <thead><tr>
+            <th>Date</th><th class="r">Points</th><th class="r">Δ Pts</th>
+            <th class="r">Attaque</th><th class="r">Δ Att</th>
+            <th class="r">Défense</th><th class="r">Δ Déf</th>
+            <th class="r">Villes</th>
+          </tr></thead>
+          <tbody id="hist-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB CONQUESTS -->
+  <div id="tab-conquests" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🏰 Conquêtes récentes</span>
+        <span class="card-badge" id="conq-badge">—</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="conq-table">
+          <thead><tr>
+            <th>Date</th><th>Ville</th><th class="r">Pts</th>
+            <th>Nouveau proprio</th><th>Ancien proprio</th><th>Type</th>
+          </tr></thead>
+          <tbody id="conq-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Config ───────────────────────────────────────────────────
+const params  = new URLSearchParams(location.search);
+const PLAYER_ID = params.get('id');
+const WORLD     = params.get('world') || 'fr183';
+const API       = 'https://api.grepodata.com';
+
+// ── Utilitaires ──────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const fmt = n => {
+  if (!n && n !== 0) return '—';
+  if (n >= 1000000) return (n/1000000).toFixed(2) + 'M';
+  if (n >= 1000)    return (n/1000).toFixed(1) + 'k';
+  return n.toLocaleString();
+};
+const sign = n => n > 0 ? '+' + fmt(n) : fmt(n);
+const deltaCls = n => n > 0 ? 'delta-pos' : n < 0 ? 'delta-neg' : 'delta-zero';
+
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  $('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function apiFetch(path) {
+  return fetch(API + path).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+}
+
+// ── Mini graphe canvas ───────────────────────────────────────
+function drawChart(canvasId, labels, data, color) {
+  const canvas = $(canvasId);
+  if (!canvas) return;
+  const ctx    = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 300;
+  const H = 160;
+  canvas.width  = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.height = H + 'px';
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+
+  const pad = { t:10, r:10, b:24, l:48 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+
+  const px = i => pad.l + i / (data.length - 1) * cw;
+  const py = v => pad.t + (1 - (v - min) / range) * ch;
+
+  // Grille
+  ctx.strokeStyle = '#2a2e45';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + ch / 4 * i;
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+    const val = max - range / 4 * i;
+    ctx.fillStyle = '#7A8099';
+    ctx.font = '9px Inter';
+    ctx.textAlign = 'right';
+    ctx.fillText(fmt(val), pad.l - 4, y + 3);
+  }
+
+  // Aire
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
+  grad.addColorStop(0, color + '44');
+  grad.addColorStop(1, color + '00');
+  ctx.beginPath();
+  ctx.moveTo(px(0), py(data[0]));
+  data.forEach((v,i) => { if(i>0) ctx.lineTo(px(i), py(v)); });
+  ctx.lineTo(px(data.length-1), pad.t + ch);
+  ctx.lineTo(px(0), pad.t + ch);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Ligne
+  ctx.beginPath();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  data.forEach((v,i) => { i===0 ? ctx.moveTo(px(i),py(v)) : ctx.lineTo(px(i),py(v)); });
+  ctx.stroke();
+
+  // Labels X
+  ctx.fillStyle = '#7A8099';
+  ctx.font = '9px Inter';
+  ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(labels.length / 6));
+  labels.forEach((l, i) => {
+    if (i % step === 0 || i === labels.length - 1) {
+      ctx.fillText(l.slice(5), px(i), H - 6);
+    }
+  });
+}
+
+// ── Heatmap ──────────────────────────────────────────────────
+function renderHeatmap(heatmap) {
+  const box = $('heatmap-box');
+  if (!heatmap || heatmap.length === 0) return;
+
+  const max = Math.max(...heatmap, 1);
+  // 7 jours × 24h = 168 valeurs
+  const days = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  let html = '';
+
+  // Ligne heures
+  html += '<div class="heatmap-label-row">';
+  for (let h = 0; h < 24; h++) {
+    html += `<div class="heatmap-hour">${h}h</div>`;
+  }
+  html += '</div>';
+
+  // 7 lignes (jours)
+  for (let d = 0; d < 7; d++) {
+    html += `<div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+      <span style="color:var(--text-dim);font-size:9px;width:24px;flex-shrink:0">${days[d]}</span>
+      <div class="heatmap-grid" style="flex:1">`;
+    for (let h = 0; h < 24; h++) {
+      const val = heatmap[d * 24 + h] || 0;
+      const pct = val / max;
+      const alpha = Math.round(pct * 200 + 20);
+      const bg = val > 0 ? `rgba(201,168,76,${pct.toFixed(2)})` : 'var(--bg4)';
+      html += `<div class="heatmap-cell" style="background:${bg}" title="${days[d]} ${h}h: ${val}"></div>`;
+    }
+    html += '</div></div>';
+  }
+
+  box.innerHTML = html;
+}
+
+// ── Deltas ───────────────────────────────────────────────────
+function renderDelta(elId, hist, nbDays) {
+  const el = $(elId);
+  if (!el || !hist.length) return;
+  const last = hist[hist.length - 1];
+  const prev = hist[hist.length - 1 - nbDays];
+  if (!prev) { el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;text-align:center;padding:10px">Données insuffisantes</div>'; return; }
+  const dPts = last.points - prev.points;
+  const dAtt = last.att    - prev.att;
+  const dDef = last.def    - prev.def;
+  el.innerHTML = `
+    <div class="delta-box"><div class="delta-label">Points</div><div class="delta-val ${deltaCls(dPts)}">${sign(dPts)}</div></div>
+    <div class="delta-box"><div class="delta-label">Attaque</div><div class="delta-val ${deltaCls(dAtt)}">${sign(dAtt)}</div></div>
+    <div class="delta-box"><div class="delta-label">Défense</div><div class="delta-val ${deltaCls(dDef)}">${sign(dDef)}</div></div>
+  `;
+}
+
+// ── Conquêtes ────────────────────────────────────────────────
+function renderConquests(conq, playerId) {
+  const tbody = $('conq-tbody');
+  const badge = $('conq-badge');
+  if (!conq || !conq.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-dim)">Aucune conquête</td></tr>';
+    return;
+  }
+  badge.textContent = conq.length + ' conquêtes';
+  tbody.innerHTML = conq.map(c => {
+    const date = new Date(c.time + 'Z').toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const isGain = c.n_p_id == playerId;
+    const typeLabel = c.type === 'enemy'    ? (isGain ? '⚔️ Prise'    : '💀 Perdue')
+                    : c.type === 'friendly' ? '🤝 Friendly'
+                    : '🔄 Interne';
+    const typeCls   = c.type === 'enemy'    ? (isGain ? 'type-enemy-gain' : 'type-enemy-loss')
+                    : c.type === 'friendly' ? 'type-friendly'
+                    : 'type-internal';
+    return `<tr>
+      <td style="white-space:nowrap;font-size:11px">${date}</td>
+      <td style="font-weight:600">${c.town_name || '—'}</td>
+      <td class="r" style="color:var(--gold)">${c.points ? fmt(c.points) : '—'}</td>
+      <td>${c.n_p_name || '—'}</td>
+      <td style="color:var(--text-dim)">${c.o_p_name || '—'}</td>
+      <td class="${typeCls}">${typeLabel}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Historique tableau ────────────────────────────────────────
+function renderHistTable(hist) {
+  const tbody = $('hist-tbody');
+  const sorted = [...hist].reverse(); // du plus récent au plus ancien
+  tbody.innerHTML = sorted.map((row, i) => {
+    const prev = sorted[i + 1];
+    const dPts = prev ? row.points - prev.points : null;
+    const dAtt = prev ? row.att    - prev.att    : null;
+    const dDef = prev ? row.def    - prev.def    : null;
+    const dc = v => v === null ? '<td class="r">—</td>' : `<td class="r ${deltaCls(v)}">${sign(v)}</td>`;
+    return `<tr>
+      <td style="white-space:nowrap;color:var(--text-dim)">${row.date}</td>
+      <td class="r" style="font-weight:600">${fmt(row.points)}</td>
+      ${dc(dPts)}
+      <td class="r">${fmt(row.att)}</td>
+      ${dc(dAtt)}
+      <td class="r">${fmt(row.def)}</td>
+      ${dc(dDef)}
+      <td class="r">${row.towns || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+async function init() {
+  if (!PLAYER_ID) {
+    $('loader').style.display = 'none';
+    $('h-name').textContent = 'Recherche joueur';
+    $('search-page').style.display = 'block';
+    return;
+  }
+
+  try {
+    // Charge les données en parallèle
+    const [info, hist, conq] = await Promise.all([
+      apiFetch(`/player/info?world=${WORLD}&id=${PLAYER_ID}`),
+      apiFetch(`/player/history?world=${WORLD}&id=${PLAYER_ID}`),
+      apiFetch(`/conquest?type=player&world=${WORLD}&id=${PLAYER_ID}&from=0&size=50&tfriendly=true&tinternal=true&tenemy=true&date=_&city=_&old_owner=_&new_owner=_`),
+    ]);
+
+    // Résout le nom de l'alliance si alliance_id présent
+    let allianceName = '';
+    let allianceId   = info.alliance_id;
+    if (allianceId && allianceId !== 0) {
+      try {
+        const allyInfo = await apiFetch(`/alliance/info?world=${WORLD}&id=${allianceId}`);
+        allianceName = allyInfo.name || '';
+      } catch(e) { allianceName = `Alliance #${allianceId}`; }
+    }
+
+    const histArr = Array.isArray(hist)
+      ? hist.sort((a,b) => a.date.localeCompare(b.date))
+      : [];
+
+    // ── Header ──
+    $('h-name').textContent = info.name || 'Joueur inconnu';
+    document.title = `${info.name} — fr183`;
+
+    // Statut
+    let statusHtml = '';
+    if (info.is_ghost) {
+      statusHtml = '<span class="badge-ghost">👻 Ghosté</span>';
+    } else if (info.hours_inactive >= 48) {
+      statusHtml = `<span class="badge-inactive">⚠️ Inactif ${info.hours_inactive}h</span>`;
+    } else if (info.hours_inactive >= 12) {
+      statusHtml = `<span class="badge-inactive">😴 Inactif ${info.hours_inactive}h</span>`;
+    } else {
+      statusHtml = '<span class="badge-active">🟢 Actif</span>';
+    }
+    $('h-status').innerHTML = statusHtml;
+    $('h-ally').innerHTML = allianceName
+      ? `Alliance : <a href="noc_dashboard.html" style="color:var(--gold);text-decoration:none">${allianceName}</a>`
+      : '<span style="color:var(--text-dim)">Sans alliance</span>';
+
+    // ── KPIs ──
+    $('kpi-pts').textContent     = fmt(info.points);
+    $('kpi-pts-rank').textContent= `#${info.rank} mondial`;
+    $('kpi-pts-best').textContent = info.rank_max ? `Record : #${info.rank_max}` : '';
+    $('kpi-towns').textContent   = info.towns;
+    $('kpi-towns-best').textContent = info.towns_max ? `Record : ${info.towns_max} villes` : '';
+    $('kpi-att').textContent     = fmt(info.att);
+    $('kpi-att-rank').textContent= `#${info.att_rank} mondial`;
+    $('kpi-att-best').textContent= info.att_rank_max ? `Record : #${info.att_rank_max}` : '';
+    $('kpi-def').textContent     = fmt(info.def);
+    $('kpi-def-rank').textContent= `#${info.def_rank} mondial`;
+    $('kpi-def-best').textContent= info.def_rank_max ? `Record : #${info.def_rank_max}` : '';
+    $('kpi-fight').textContent   = fmt(info.att + info.def);
+    $('kpi-fight-rank').textContent = `#${info.fight_rank} mondial`;
+    $('kpi-status').innerHTML    = statusHtml;
+    $('kpi-inactive').textContent = info.hours_inactive > 0 ? `Depuis ${info.hours_inactive}h` : '';
+
+    // ── Profil ──
+    const profLines = [
+      ['Nom',            info.name],
+      ['Alliance',       allianceName || 'Sans alliance'],
+      ['Points',         `${fmt(info.points)} (#${info.rank} mondial)`],
+      ['Villes',         `${info.towns} (record : ${info.towns_max})`],
+      ['Att / Rang',     `${fmt(info.att)} (#${info.att_rank}) · record #${info.att_rank_max}`],
+      ['Déf / Rang',     `${fmt(info.def)} (#${info.def_rank}) · record #${info.def_rank_max}`],
+      ['Combattants',    `${fmt(info.att+info.def)} (#${info.fight_rank})`],
+      ['Inactivité',     info.hours_inactive > 0 ? `${info.hours_inactive}h` : 'Actif'],
+      ['Ghosté',         info.is_ghost ? `Oui (${info.ghost_alliance || ''})` : 'Non'],
+    ];
+    $('profile-box').innerHTML = profLines.map(([k,v]) =>
+      `<div class="profile-row"><span class="profile-key">${k}</span><span class="profile-val">${v}</span></div>`
+    ).join('');
+
+    // ── Heatmap ──
+    renderHeatmap(info.heatmap);
+
+    // ── Deltas ──
+    renderDelta('delta-1j',  histArr, 1);
+    renderDelta('delta-7j',  histArr, 7);
+    renderDelta('delta-21j', histArr, Math.min(21, histArr.length - 1));
+
+    // ── Graphes ──
+    setTimeout(() => {
+      if (histArr.length > 1) {
+        const labels = histArr.map(h => h.date);
+        drawChart('chart-pts', labels, histArr.map(h => h.points), '#C9A84C');
+        drawChart('chart-att', labels, histArr.map(h => h.att),    '#e74c3c');
+        drawChart('chart-def', labels, histArr.map(h => h.def),    '#2E86AB');
+      }
+    }, 100);
+
+    // ── Historique tableau ──
+    renderHistTable(histArr);
+
+    // ── Conquêtes ──
+    renderConquests(conq?.conq || [], PLAYER_ID);
+
+    // ── Affiche ──
+    $('loader').style.display = 'none';
+    $('main').classList.add('loaded');
+
+  } catch(e) {
+    $('loader').innerHTML = `<div class="error-box">❌ Erreur de chargement : ${e.message}</div>`;
+    console.error(e);
+  }
+}
+
+init();
+</script>
+
+<!-- PAGE RECHERCHE (si pas d'id dans l'URL) -->
+<div id="search-page" style="display:none;max-width:500px;margin:80px auto;padding:0 16px">
+  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:24px">
+    <h2 style="color:var(--gold);margin-bottom:16px;font-size:16px">🔍 Rechercher un joueur</h2>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="search-input" type="text" placeholder="Nom du joueur..."
+        style="flex:1;background:var(--bg4);border:1px solid var(--border);border-radius:6px;
+               color:var(--text);padding:8px 12px;font-size:13px;outline:none"
+        onkeydown="if(event.key==='Enter') doSearch()"
+      >
+      <button onclick="doSearch()"
+        style="background:var(--gold);color:#1a1d2e;border:none;border-radius:6px;
+               padding:8px 16px;font-weight:700;cursor:pointer">
+        Chercher
+      </button>
+    </div>
+    <div id="search-results" style="margin-top:8px"></div>
+  </div>
+</div>
+
+<script>
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (q.length < 2) return;
+  const res = document.getElementById('search-results');
+  res.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px">Recherche...</div>';
+  try {
+    const data = await fetch(`https://api.grepodata.com/search?query=${encodeURIComponent(q)}&preferred_server=fr183`).then(r=>r.json());
+    const players = (data.results||[]).filter(r=>r.type==='player'&&r.world==='fr183');
+    if (!players.length) {
+      res.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px">Aucun résultat</div>';
+      return;
+    }
+    res.innerHTML = players.map(p => `
+      <div onclick="location.href='noc_player.html?id=${p.id}&world=fr183'"
+        style="padding:10px 12px;border-radius:6px;cursor:pointer;
+               border:1px solid var(--border);margin-bottom:6px;
+               background:var(--bg4);display:flex;justify-content:space-between;align-items:center"
+        onmouseover="this.style.borderColor='var(--gold)'"
+        onmouseout="this.style.borderColor='var(--border)'">
+        <span style="font-weight:700;color:var(--text)">${p.name}</span>
+        <span style="font-size:11px;color:var(--text-dim)">${p.points?.toLocaleString()||'?'} pts</span>
+      </div>
+    `).join('');
+  } catch(e) {
+    res.innerHTML = '<div style="color:var(--red);font-size:12px;padding:8px">Erreur de recherche</div>';
+  }
+}
+</script>
+
+</body>
+</html>
