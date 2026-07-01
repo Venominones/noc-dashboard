@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOC — No Other Choice · fr183</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Inter:wght@300;400;500;600&display=swap');
+
+  :root {
+    --gold:     #C9A84C;
+    --gold-dim: #7A6130;
+    --red:      #C0392B;
+    --red-dim:  #7B241C;
+    --blue:     #2E86AB;
+    --bg0:      #0D0F14;
+    --bg1:      #13161E;
+    --bg2:      #1A1E2A;
+    --bg3:      #222737;
+    --border:   #2E3447;
+    --text:     #E8E4D9;
+    --text-dim: #7A8099;
+    --green:    #27AE60;
+    --orange:   #E67E22;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg0);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(180deg, #0A0C10 0%, var(--bg1) 100%);
+    border-bottom: 1px solid var(--gold-dim);
+    padding: 24px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .header-left { display: flex; align-items: center; gap: 20px; }
+  .emblem {
+    width: 52px; height: 52px;
+    background: radial-gradient(circle, var(--gold) 0%, var(--gold-dim) 60%, transparent 100%);
+    border-radius: 50%;
+    border: 2px solid var(--gold);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 0 20px rgba(201,168,76,0.3);
+  }
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .subtitle { color: var(--text-dim); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+  .header-meta { text-align: right; }
+  .last-update { color: var(--text-dim); font-size: 11px; }
+  .world-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+  }
+
+  /* ── LAYOUT ── */
+  main { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+
+  /* ── KPI STRIP ── */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .kpi {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--gold);
+    opacity: 0.4;
+  }
+  .kpi.attack::before  { background: var(--red); opacity: 0.7; }
+  .kpi.defense::before { background: var(--blue); opacity: 0.7; }
+  .kpi.fight::before   { background: var(--orange); opacity: 0.7; }
+  .kpi.towns::before   { background: var(--green); opacity: 0.7; }
+
+  .kpi-label { color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .kpi-value { font-family: 'Cinzel', serif; font-size: 26px; font-weight: 600; color: var(--text); line-height: 1; }
+  .kpi-sub   { margin-top: 4px; font-size: 11px; color: var(--text-dim); }
+  .kpi-delta { font-size: 12px; font-weight: 600; margin-top: 4px; }
+  .kpi-delta.up   { color: var(--green); }
+  .kpi-delta.down { color: var(--red); }
+
+  /* ── GRID 2 COLS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* ── CARD ── */
+  .card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-title {
+    font-family: 'Cinzel', serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  .card-badge {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .card-body { padding: 16px 20px; }
+
+  /* ── TABLE MEMBRES ── */
+  .member-table { width: 100%; border-collapse: collapse; }
+  .member-table th {
+    text-align: left;
+    padding: 6px 10px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+  }
+  .member-table th.r { text-align: right; }
+  .member-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(46,52,71,0.5);
+    font-size: 13px;
+  }
+  .member-table td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  .member-table tr:last-child td { border-bottom: none; }
+  .member-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    background: var(--bg3);
+    font-size: 11px;
+    color: var(--text-dim);
+    font-weight: 600;
+  }
+  .rank-badge.top1 { background: rgba(201,168,76,0.2); color: var(--gold); }
+  .rank-badge.top3 { background: rgba(201,168,76,0.1); color: #B8A060; }
+  .name-cell { font-weight: 500; }
+  .pts { font-variant-numeric: tabular-nums; }
+  .delta-pos { color: var(--green); font-size: 11px; }
+  .delta-neg { color: var(--red); font-size: 11px; }
+  .delta-zero { color: var(--text-dim); font-size: 11px; }
+  .bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .bar-bg { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+  .bar-atk  { background: var(--red); }
+  .bar-def  { background: var(--blue); }
+  .bar-cbt  { background: var(--orange); }
+  .bar-pts  { background: var(--gold); }
+
+  /* ── TOP 5 LISTES ── */
+  .top5-list { list-style: none; }
+  .top5-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(46,52,71,0.4);
+    gap: 8px;
+  }
+  .top5-list li:last-child { border-bottom: none; }
+  .top5-medal { font-size: 18px; width: 24px; flex-shrink: 0; }
+  .top5-name  { flex: 1; font-weight: 500; font-size: 13px; }
+  .top5-val   { font-variant-numeric: tabular-nums; font-size: 13px; color: var(--green); font-weight: 600; }
+
+  /* ── CHART CANVAS ── */
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* ── LOADING ── */
+  #loading {
+    position: fixed; inset: 0;
+    background: var(--bg0);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px;
+    z-index: 100;
+  }
+  .loader-title { font-family: 'Cinzel', serif; font-size: 18px; color: var(--gold); letter-spacing: 3px; }
+  .loader-sub   { color: var(--text-dim); font-size: 12px; }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--bg3);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── ERROR ── */
+  .error-msg {
+    background: rgba(192,57,43,0.1);
+    border: 1px solid var(--red-dim);
+    border-radius: 8px;
+    padding: 16px 20px;
+    color: #E57373;
+    margin: 16px 0;
+  }
+
+  /* ── REFRESH BTN ── */
+  .discord-btn {
+    background: #5865F2;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+    transition: background 0.2s;
+  }
+  .discord-btn:hover { background: #4752c4; }
+  .discord-btn:disabled { opacity: 0.6; cursor: wait; }
+
+  #discord-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #5865F2;
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    z-index: 9999;
+    display: none;
+    box-shadow: 0 4px 20px rgba(88,101,242,0.5);
+    animation: fadeIn 0.3s ease;
+  }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1px solid var(--gold-dim);
+    color: var(--gold);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .refresh-btn:hover { background: rgba(201,168,76,0.1); border-color: var(--gold); }
+
+  /* ── VERSUS STRIP ── */
+  .versus-strip {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .vs-side { }
+  .vs-side.right { text-align: right; }
+  .vs-ally-name { font-family: 'Cinzel', serif; font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .vs-ally-name.noc { color: var(--gold); }
+  .vs-ally-name.bib { color: #E74C3C; }
+  .vs-stat { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 12px; }
+  .vs-stat.right { justify-content: flex-end; }
+  .vs-label { color: var(--text-dim); }
+  .vs-val { font-weight: 600; }
+  .vs-divider { text-align: center; }
+  .vs-text { font-family: 'Cinzel', serif; font-size: 20px; font-weight: 900; color: var(--text-dim); }
+  .vs-rank { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .progress-bar-vs {
+    height: 6px; background: var(--bg3); border-radius: 3px; margin: 6px 0;
+    overflow: hidden; position: relative;
+  }
+  .progress-fill-noc { position: absolute; left: 0; top: 0; height: 100%; background: var(--gold); border-radius: 3px; }
+  .progress-fill-bib { position: absolute; right: 0; top: 0; height: 100%; background: #E74C3C; border-radius: 3px; }
+
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab-btn {
+    background: var(--bg2); border: 1px solid var(--border);
+    color: var(--text-dim); padding: 7px 16px; border-radius: 6px;
+    cursor: pointer; font-size: 12px; transition: all 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  .tab-btn.active { background: var(--bg3); border-color: var(--gold-dim); color: var(--gold); }
+  .tab-btn:hover:not(.active) { border-color: var(--border); color: var(--text); }
+
+  .section-label {
+    font-family: 'Cinzel', serif;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 20px 0 10px;
+  }
+
+  /* ── TOTAL COMBAT ── */
+  .combat-total {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+  }
+  .combat-total-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .combat-total-val {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Cinzel', serif;
+  }
+  .combat-total-val.atk { color: #C0392B; }
+  .combat-total-val.def { color: #2E86AB; }
+  .combat-total-val.cbt { color: var(--gold); }
+  .combat-total-sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .delta-cbt-pos { color: #e74c3c; font-weight:600; }  /* rouge = plus de combat */
+  .delta-cbt-neg { color: #2E86AB; }
+  .delta-cbt-zero{ color: var(--text-dim); }
+
+  footer {
+    text-align: center;
+    padding: 24px;
+    color: var(--text-dim);
+    font-size: 11px;
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+  }
+
+  /* ── PAGINATION ── */
+  .pag-btn {
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    min-width: 28px;
+    transition: background 0.15s;
+  }
+  .pag-btn:hover:not(:disabled) { background: var(--gold); color: #000; }
+  .pag-btn.active { background: var(--gold); color: #000; font-weight: 700; border-color: var(--gold); }
+  .pag-btn:disabled { opacity: 0.35; cursor: default; }
+
+  /* ── INACTIVITÉ ── */
+  .inactive-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    margin-left: 6px;
+    font-weight: 600;
+    vertical-align: middle;
+  }
+  .inactive-badge.red    { background: rgba(192,57,43,0.25); color: #e74c3c; border: 1px solid #c0392b; }
+  .inactive-badge.orange { background: rgba(230,126,34,0.25); color: #e67e22; border: 1px solid #e67e22; }
+  .inactive-badge.grey   { background: rgba(122,128,153,0.15); color: #7A8099; border: 1px solid #444; }
+
+  /* ── ALLIANCE SWITCHER ── */
+  .ally-switcher {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+  }
+  .ally-switcher-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .ally-search-wrap { position: relative; }
+  .ally-search {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'Inter', sans-serif;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .ally-search:focus { border-color: var(--gold-dim); }
+  .ally-search::placeholder { color: var(--text-dim); }
+  .ally-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 280px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 999;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .ally-dropdown.open { display: block; }
+  .ally-item {
+    padding: 9px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(46,52,71,0.4);
+    transition: background 0.15s;
+  }
+  .ally-item:last-child { border-bottom: none; }
+  .ally-item:hover { background: var(--bg3); }
+  .ally-item.active { background: rgba(201,168,76,0.1); }
+  .ally-item-name { font-size: 13px; font-weight: 500; }
+  .ally-item-rank { font-size: 11px; color: var(--text-dim); }
+  .ally-item-pts  { font-size: 11px; color: var(--gold-dim); }
+  .ally-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="emblem">⚔️</div>
+  <div class="loader-title">NO OTHER CHOICE</div>
+  <div class="spinner"></div>
+  <div class="loader-sub" id="loading-status">Connexion à l'API GrepoData...</div>
+</div>
+
+<header>
+  <div class="header-left">
+    <div class="emblem">⚔️</div>
+    <div>
+      <h1>No Other Choice</h1>
+      <div class="subtitle">Dashboard Alliance · fr183</div>
+    </div>
+  </div>
+  <div class="header-meta" style="display:flex;align-items:center;gap:16px">
+    <div class="ally-switcher">
+      <span class="ally-switcher-label">👁️ Alliance</span>
+      <div class="ally-search-wrap">
+        <input class="ally-search" id="ally-search" placeholder="Rechercher une alliance..." autocomplete="off">
+        <div class="ally-dropdown" id="ally-dropdown"></div>
+      </div>
+      <div class="ally-badge" id="ally-badge">NOC</div>
+    </div>
+    <div style="text-align:right">
+      <div class="world-badge">FR183</div>
+      <div class="last-update" id="last-update" style="margin-top:6px">—</div>
+      <div class="last-update" id="countdown" style="margin-top:2px;color:var(--gold-dim)">—</div>
+      <button class="refresh-btn" onclick="loadData()" style="margin-top:8px">↺ Actualiser</button>
+      <button class="discord-btn" onclick="generateDiscordReport()" style="margin-top:8px" title="Copier rapport Discord">📋 Discord</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="error-zone"></div>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip" id="kpi-strip">
+    <div class="kpi">
+      <div class="kpi-label">🏆 Points</div>
+      <div class="kpi-value" id="kpi-points">—</div>
+      <div class="kpi-sub" id="kpi-rank">Rang alliance</div>
+    </div>
+    <div class="kpi towns">
+      <div class="kpi-label">🏙️ Villes</div>
+      <div class="kpi-value" id="kpi-villes">—</div>
+      <div class="kpi-sub" id="kpi-members">— membres</div>
+    </div>
+    <div class="kpi attack">
+      <div class="kpi-label">⚔️ Attaque</div>
+      <div class="kpi-value" id="kpi-atk">—</div>
+    </div>
+    <div class="kpi defense">
+      <div class="kpi-label">🛡️ Défense</div>
+      <div class="kpi-value" id="kpi-def">—</div>
+    </div>
+    <div class="kpi fight">
+      <div class="kpi-label">🗡️ Combattants</div>
+      <div class="kpi-value" id="kpi-cbt">—</div>
+    </div>
+  </div>
+
+  <!-- VERSUS BIBIMBAP -->
+  <div class="versus-strip" id="versus-strip" style="display:none">
+    <div class="vs-side">
+      <div class="vs-ally-name noc" id="vs-noc-name">No Other Choice</div>
+      <div class="vs-stat"><span class="vs-val" id="vs-noc-pts">—</span><span class="vs-label">pts</span></div>
+      <div class="vs-stat"><span class="vs-val" id="vs-noc-towns">—</span><span class="vs-label">villes</span></div>
+      <div class="vs-rank" id="vs-noc-rank">—</div>
+    </div>
+    <div class="vs-divider">
+      <div class="vs-text">VS</div>
+      <div class="progress-bar-vs" style="width:120px;margin:8px auto">
+        <div class="progress-fill-noc" id="vs-bar-noc"></div>
+        <div class="progress-fill-bib" id="vs-bar-bib"></div>
+      </div>
+    </div>
+    <div class="vs-side right">
+      <div class="vs-ally-name bib" id="vs-opp-name">Bibimbap</div>
+      <div class="vs-stat right"><span class="vs-label">pts</span><span class="vs-val" id="vs-bib-pts">—</span></div>
+      <div class="vs-stat right"><span class="vs-label">villes</span><span class="vs-val" id="vs-bib-towns">—</span></div>
+      <div class="vs-rank" id="vs-bib-rank">—</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="showTab('membres')">👥 Membres</button>
+    <button class="tab-btn" onclick="showTab('combat')">⚔️ Combat</button>
+    <button class="tab-btn" onclick="showTab('top5')">🏆 Top 5</button>
+    <button class="tab-btn" onclick="showTab('historique')">📈 Historique</button>
+    <button class="tab-btn" onclick="showTab('conquetes')">🏰 Conquêtes</button>
+  </div>
+
+  <!-- TAB CONQUÊTES -->
+  <div id="tab-conquetes" style="display:none">
+    <div class="card">
+      <div class="card-header" style="flex-wrap:wrap;gap:8px">
+        <span class="card-title">🏰 Conquêtes</span>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:11px;color:var(--text-dim)">
+            <input type="checkbox" id="cq-friendly" checked onchange="window._cqPage=1;renderConquetes()"> 🤝 Friendly
+          </label>
+          <label style="font-size:11px;color:var(--text-dim)">
+            <input type="checkbox" id="cq-enemy" checked onchange="window._cqPage=1;renderConquetes()"> ⚔️ Ennemi
+          </label>
+          <label style="font-size:11px;color:var(--text-dim)">
+            <input type="checkbox" id="cq-internal" checked onchange="window._cqPage=1;renderConquetes()"> 🔄 Interne
+          </label>
+          <select id="cq-perpage" onchange="window._cqPage=1;renderConquetes()" style="background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:11px">
+            <option value="10">10 / page</option>
+            <option value="20">20 / page</option>
+            <option value="30" selected>30 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+          </select>
+          <span class="card-badge" id="badge-conquetes">—</span>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="member-table" id="table-conquetes">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Ville</th>
+              <th class="r">Pts</th>
+              <th>Joueur</th>
+              <th>Ancien proprio</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-conquetes">
+            <tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-dim)">Cliquer sur l'onglet pour charger</td></tr>
+          </tbody>
+        </table>
+        <div id="cq-pagination" style="padding:12px 16px;display:flex;gap:4px;align-items:center;flex-wrap:wrap;border-top:1px solid var(--border)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB MEMBRES -->
+  <div id="tab-membres">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Classement interne</span>
+        <span class="card-badge" id="badge-membres">0 membres</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="member-table" id="table-membres">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Joueur</th>
+              <th class="r">Points</th>
+              <th class="r">Villes</th>
+              <th class="r">Rang 🌍</th>
+              <th class="r" id="th-delta">Δ 24H</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-membres"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB COMBAT -->
+  <div id="tab-combat" style="display:none">
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚔️ Attaque</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="combat-total" id="total-atk">
+            <div>
+              <div class="combat-total-label">Total Attaque</div>
+              <div class="combat-total-val atk" id="total-atk-val">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="combat-total-label">Rang alliance</div>
+              <div class="combat-total-sub" id="total-atk-rank">—</div>
+            </div>
+          </div>
+          <table class="member-table" id="table-atk">
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th><th class="r">Δ Auj.</th></tr></thead>
+            <tbody id="tbody-atk"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🛡️ Défense</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="combat-total" id="total-def">
+            <div>
+              <div class="combat-total-label">Total Défense</div>
+              <div class="combat-total-val def" id="total-def-val">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="combat-total-label">Rang alliance</div>
+              <div class="combat-total-sub" id="total-def-rank">—</div>
+            </div>
+          </div>
+          <table class="member-table" id="table-def">
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th><th class="r">Δ Auj.</th></tr></thead>
+            <tbody id="tbody-def"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🗡️ Combattants</span></div>
+        <div class="card-body" style="padding:0">
+          <div class="combat-total">
+            <div>
+              <div class="combat-total-label">Total Combattants</div>
+              <div class="combat-total-val cbt" id="total-cbt-val">—</div>
+            </div>
+            <div style="text-align:right">
+              <div class="combat-total-label">= Atk + Déf</div>
+              <div class="combat-total-sub" id="total-cbt-sub">—</div>
+            </div>
+          </div>
+          <table class="member-table" id="table-cbt">
+            <thead><tr><th>#</th><th>Joueur</th><th class="r">Pts</th><th class="r">Rang 🌍</th><th class="r">Δ Auj.</th></tr></thead>
+            <tbody id="tbody-cbt"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB TOP5 -->
+  <div id="tab-top5" style="display:none">
+    <div class="grid-3">
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚔️ Top 5 Attaque</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-atk"></ul></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🛡️ Top 5 Défense</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-def"></ul></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🗡️ Top 5 Combattants</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-cbt"></ul></div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">🏆 Top Points</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-pts"></ul></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">🏙️ Top Villes</span></div>
+        <div class="card-body"><ul class="top5-list" id="top5-villes"></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB HISTORIQUE -->
+  <div id="tab-historique" style="display:none">
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">📈 Points alliance</span></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-points"></canvas></div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">⚔️ Attaque + Défense</span></div>
+        <div class="card-body"><div class="chart-wrap"><canvas id="chart-combat"></canvas></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📊 Progression individuelle</span>
+        <span class="card-badge" id="hist-info">Données stockées localement</span>
+      </div>
+      <div class="card-body" style="padding:0">
+        <table class="member-table" id="table-hist">
+          <thead>
+            <tr>
+              <th>Joueur</th>
+              <th class="r">Pts actuels</th>
+              <th class="r">Δ aujourd'hui</th>
+              <th class="r">Δ 7 jours</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-hist"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  NOC Dashboard · Données en direct via <a href="https://grepodata.com" target="_blank" style="color:var(--gold-dim)">GrepoData</a> · fr183
+</footer>
+
+<script>
+const API     = 'https://api.grepodata.com';
+const WORLD   = 'fr183';
+
+// Alliance active — dynamique
+let ACTIVE_ALLY = { id: 2, name: 'No Other Choice' };
+let ALL_ALLIANCES = [];
+const NOC       = { id: 2,  name: 'No Other Choice' };
+const BIBIMBAP  = { id: 22, name: 'Bibimbap' };
+
+// Retourne l'adversaire à afficher dans le VS strip
+function getOpponent() {
+  return ACTIVE_ALLY.id === NOC.id ? BIBIMBAP : NOC;
+}
+
+let members = [];
+let bibimbap = null;
+let historyData = [];
+
+function getHistKey() { return 'noc_hist_' + ACTIVE_ALLY.id; }
+function loadHistoryData() {
+  historyData = JSON.parse(localStorage.getItem(getHistKey()) || '[]');
+}
+
+const MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+
+function fmt(n) { return Number(n||0).toLocaleString('fr-FR'); }
+function sign(n) { return n >= 0 ? '+' + fmt(n) : fmt(n); }
+
+async function apiFetch(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(`API ${path} → ${r.status}`);
+  return r.json();
+}
+
+function showTab(name) {
+  ['membres','combat','top5','historique','conquetes'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    const tabs = ['membres','combat','top5','historique','conquetes'];
+    btn.classList.toggle('active', tabs[i] === name);
+  });
+  if (name === 'historique') renderHistorique();
+  if (name === 'conquetes') renderConquetes();
+  window._activeTab = name;
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('loading-status');
+  if (el) el.textContent = msg;
+}
+
+
+// ─── AUTO-REFRESH ───
+const REFRESH_INTERVAL = 5 * 60 * 1000;
+let refreshTimer = null;
+let countdownTimer = null;
+let nextRefresh = Date.now() + REFRESH_INTERVAL;
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (countdownTimer) clearInterval(countdownTimer);
+  nextRefresh = Date.now() + REFRESH_INTERVAL;
+  refreshTimer = setInterval(() => {
+    nextRefresh = Date.now() + REFRESH_INTERVAL;
+    loadData();
+  }, REFRESH_INTERVAL);
+  countdownTimer = setInterval(() => {
+    const remaining = Math.max(0, Math.round((nextRefresh - Date.now()) / 1000));
+    const mins = Math.floor(remaining / 60);
+    const secs = remaining % 60;
+    const el = document.getElementById('countdown');
+    if (el) el.textContent = 'Prochain refresh dans ' + mins + ':' + String(secs).padStart(2,'0');
+  }, 1000);
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'flex';
+  document.getElementById('error-zone').innerHTML = '';
+
+  try {
+    setStatus('Chargement des membres...');
+    const [membersResp, rankingResp, allyResp, allyHistResp] = await Promise.all([
+      apiFetch(`/alliance/members?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
+      apiFetch(`/ranking/player?world=${WORLD}`),
+      apiFetch(`/alliance/info?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
+      apiFetch(`/alliance/history?world=${WORLD}&id=${ACTIVE_ALLY.id}`),
+    ]);
+
+    setStatus('Traitement des données...');
+
+    // Historique officiel alliance (1 point par jour, 21 jours)
+    const allyHistory = (Array.isArray(allyHistResp) ? allyHistResp : [])
+      .sort((a,b) => a.date.localeCompare(b.date));
+    window._allyHistory = allyHistory;
+
+    // Build ranking map
+    const rankMap = {};
+    const rankList = Array.isArray(rankingResp) ? rankingResp :
+                     rankingResp?.results || rankingResp?.players || rankingResp?.ranking || [];
+    rankList.forEach(p => { if (p.name || p.player_name) rankMap[p.name || p.player_name] = p; });
+
+    // Parse members
+    const rawList = Array.isArray(membersResp) ? membersResp :
+                    membersResp?.results || membersResp?.members || membersResp?.players || [];
+
+    // Calcule fight_rank depuis rankMap (att+def de tous les joueurs classés)
+    // Trie par att+def décroissant et assigne le rang
+    const allRanked = Object.values(rankMap)
+      .map(p => ({ name: p.name||p.player_name||'', fight: parseInt(p.att||0)+parseInt(p.def||0) }))
+      .filter(p => p.fight > 0)
+      .sort((a,b) => b.fight - a.fight);
+    const fightRankMap = {};
+    allRanked.forEach((p,i) => { fightRankMap[p.name] = i + 1; });
+
+    members = rawList.map(m => {
+      const name = m.name || m.player_name || '';
+      const rk   = rankMap[name] || {};
+      return {
+        nom:    name,
+        id:     m.id || m.grep_id,
+        rang:   parseInt(m.rank || m.ranking || 0),
+        points: parseInt(m.points || 0),
+        villes: parseInt(m.towns || m.town_count || 0),
+        atk:    parseInt(m.att || 0),
+        atk_r:  parseInt(m.att_rank || 0),
+        def:    parseInt(m.def || 0),
+        def_r:  parseInt(m.def_rank || 0),
+        cbt:    parseInt(m.att||0) + parseInt(m.def||0),
+        cbt_r:  fightRankMap[name] || 0,  // rang mondial combattants (att+def)
+        hours_inactive: parseInt(m.hours_inactive || 0),
+        history: Array.isArray(m.history) ? m.history : [],
+      };
+    }).filter(m => m.nom && m.points > 0);
+
+    // Charge les fight_rank depuis /player/info en parallèle (arrière-plan)
+    // On ne bloque pas le rendu — les rangs apparaissent dès qu'ils sont prêts
+    const memberIds = members.map(m => m.id).filter(Boolean);
+    Promise.all(
+      memberIds.map(id =>
+        apiFetch(`/player/info?world=${WORLD}&id=${id}`)
+          .then(d => ({ id, fight_rank: parseInt(d?.fight_rank || 0), att_rank: parseInt(d?.att_rank || 0), def_rank: parseInt(d?.def_rank || 0) }))
+          .catch(() => null)
+      )
+    ).then(results => {
+      results.forEach(r => {
+        if (!r) return;
+        const m = members.find(x => x.id === r.id);
+        if (m) {
+          m.cbt_r = r.fight_rank;
+          // Mise à jour att_rank et def_rank aussi (plus précis que members endpoint)
+          if (r.att_rank > 0) m.atk_r = r.att_rank;
+          if (r.def_rank > 0) m.def_r = r.def_rank;
+        }
+      });
+      // Re-render combat si actif
+      if (window._activeTab === 'combat') renderCombat(members);
+      if (window._activeTab === 'membres') renderMembres(members);
+    }).catch(() => {});
+
+    // Alliance info
+    const allyInfo = allyResp?.alliance || allyResp || {};
+
+    // Cherche Bibimbap dans le ranking alliances
+    try {
+      setStatus('Chargement du comparatif...');
+      const allyRank = await apiFetch(`/ranking/alliance?world=${WORLD}`);
+      const allyList = Array.isArray(allyRank) ? allyRank :
+                       allyRank?.results || allyRank?.alliances || [];
+      bibimbap = allyList.find(a => (a.name||'').toLowerCase().includes('bibimbap'));
+    } catch(e) { bibimbap = null; }
+
+    // Historique — recharge pour cette alliance spécifique
+    loadHistoryData();
+    saveHistory(members);
+
+    // Render
+    window._allyInfo = allyInfo;
+    window._allyInfoId = ACTIVE_ALLY.id;  // marqueur pour valider les snapshots
+    renderKPIs(members, allyInfo);
+    renderVersus(members, allyInfo, ALL_ALLIANCES);
+    renderMembres(members);
+    renderCombat(members);
+    renderTop5(members);
+    // Si l'onglet historique est affiché, le rafraîchir aussi
+    if (window._activeTab === 'historique') renderHistorique();
+
+
+    document.getElementById('last-update').textContent =
+      'Mis à jour : ' + new Date().toLocaleTimeString('fr-FR');
+    startAutoRefresh();
+    document.getElementById('loading').style.display = 'none';
+
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-zone').innerHTML =
+      `<div class="error-msg">❌ Erreur de chargement : ${e.message}<br>
+       Vérifie ta connexion ou réessaie dans quelques secondes.</div>`;
+  }
+}
+
+function saveHistory(members) {
+  const now   = Date.now();
+  const date  = new Date(now).toISOString().split('T')[0];
+  // Clé heure : "2026-06-23T06" → 1 snap max par heure pour le graphe long terme
+  const hourKey = new Date(now).toISOString().slice(0, 13);
+
+  // Att/def ne peuvent QUE monter → prend le MAX entre la valeur API et le dernier snap connu
+  const lastSnap   = historyData[historyData.length - 1];
+  const lastAtk    = parseInt(lastSnap?.total_atk || 0);
+  const lastDef    = parseInt(lastSnap?.total_def || 0);
+  // UNIQUEMENT /alliance/info pour att/def — jamais la somme membres (non fiable)
+  const newAtk     = parseInt(window._allyInfo?.att || 0);
+  const newDef     = parseInt(window._allyInfo?.def || 0);
+
+  // Sécurité : _allyInfo doit correspondre à l'alliance active
+  // Si pas encore chargé pour cette alliance → att/def à 0 (ne pas polluer avec données d'une autre alliance)
+  const infoMatchesAlly = window._allyInfoId === ACTIVE_ALLY.id;
+  const safeAtk = infoMatchesAlly ? newAtk : 0;
+  const safeDef = infoMatchesAlly ? newDef : 0;
+
+  // Validation cohérence : variation max +5% par rapport au dernier connu
+  const atkOk = safeAtk > 0 && (lastAtk === 0 || (safeAtk >= lastAtk && safeAtk <= lastAtk * 1.05));
+  const defOk = safeDef > 0 && (lastDef === 0 || (safeDef >= lastDef && safeDef <= lastDef * 1.05));
+
+  const snap = {
+    date      : date,
+    hourKey   : hourKey,
+    ts        : now,
+    total_pts : members.reduce((s,m) => s+m.points, 0),
+    total_atk : atkOk ? safeAtk : (lastAtk || 0),
+    total_def : defOk ? safeDef : (lastDef || 0),
+    members   : members.map(m => ({ nom:m.nom, pts:m.points, atk:m.atk, def:m.def, cbt:m.atk+m.def }))
+  };
+
+  // Purge les snapshots corrompus (ts=0 ou pts=0)
+  const existing = historyData.filter(h =>
+    parseInt(h.ts || 0) > 1700000000000 && parseInt(h.total_pts || 0) > 0
+  );
+
+  // Stratégie de stockage :
+  // - snapshots < 24h : on garde TOUS (refresh 5min = delta live)
+  // - snapshots > 24h : on garde 1 par heure (économise de la place)
+  const cutoff24h = now - 24 * 3600 * 1000;
+
+  const recent   = existing.filter(h => h.ts >= cutoff24h);
+  const old      = existing.filter(h => h.ts <  cutoff24h);
+
+  // Pour les vieux snaps : garde 1 par heure (le premier de chaque heure)
+  const oldByHour = {};
+  old.forEach(h => {
+    const hk = h.hourKey || new Date(h.ts).toISOString().slice(0, 13);
+    if (!oldByHour[hk]) {
+      oldByHour[hk] = h;
+    } else {
+      // Garde le MAX att/def de l'heure (att/def ne peuvent que monter)
+      oldByHour[hk] = {
+        ...oldByHour[hk],
+        total_atk: Math.max(oldByHour[hk].total_atk, h.total_atk),
+        total_def: Math.max(oldByHour[hk].total_def, h.total_def),
+        ts: h.ts,  // timestamp le plus récent de l'heure
+      };
+    }
+  });
+
+  // Ajoute le snap actuel aux récents
+  recent.push(snap);
+
+  historyData = [
+    ...Object.values(oldByHour).sort((a,b) => a.ts - b.ts).slice(-30*24), // max 30j d'historique
+    ...recent
+  ];
+
+  localStorage.setItem(getHistKey(), JSON.stringify(historyData));
+}
+
+function renderKPIs(members, info) {
+  const totPts = members.reduce((s,m) => s+m.points, 0);
+  const totVil = members.reduce((s,m) => s+m.villes, 0);
+  // UNIQUEMENT /alliance/info pour att/def — source officielle
+  const totAtk = parseInt(info.att || 0);
+  const totDef = parseInt(info.def || 0);
+  const totCbt = totAtk + totDef;
+
+  document.getElementById('kpi-points').textContent = fmt(totPts);
+  document.getElementById('kpi-villes').textContent = totVil;
+  document.getElementById('kpi-members').textContent = members.length + ' membres';
+  document.getElementById('kpi-rank').textContent = info.rank ? '#' + info.rank + ' mondial' : '';
+  // Met à jour le titre avec l'alliance active
+  document.querySelector('h1').textContent = ACTIVE_ALLY.name;
+  document.getElementById('kpi-atk').textContent = fmt(totAtk);
+  document.getElementById('kpi-def').textContent = fmt(totDef);
+  document.getElementById('kpi-cbt').textContent = fmt(totCbt);
+}
+
+function renderVersus(members, allyInfo, allAllyList) {
+  const activePts   = members.reduce((s,m) => s+m.points, 0);
+  const activeTowns = members.reduce((s,m) => s+m.villes, 0);
+
+  // Détermine l'adversaire : si on regarde NOC → Bibimbap, sinon → NOC
+  let opponent = null;
+  if (ACTIVE_ALLY.id === 2) {
+    // On regarde NOC → cherche Bibimbap
+    opponent = (allAllyList||[]).find(a => (a.name||'').toLowerCase().includes('bibimbap'));
+  } else {
+    // On regarde autre alliance → cherche NOC (#2)
+    opponent = (allAllyList||[]).find(a => a.id === 2);
+  }
+
+  if (!opponent) { document.getElementById('versus-strip').style.display = 'none'; return; }
+
+  const oppPts   = parseInt(opponent.points || 0);
+  const oppTowns = parseInt(opponent.towns || opponent.town_count || 0);
+  const total    = activePts + oppPts;
+  const actPct   = total > 0 ? Math.round(activePts / total * 100) : 50;
+  const oppPct   = 100 - actPct;
+
+  document.getElementById('vs-noc-name').textContent  = ACTIVE_ALLY.name;
+  document.getElementById('vs-noc-pts').textContent   = fmt(activePts);
+  document.getElementById('vs-noc-towns').textContent = activeTowns + ' villes';
+  document.getElementById('vs-noc-rank').textContent  = allyInfo.rank ? '#' + allyInfo.rank + ' mondial' : '';
+  document.getElementById('vs-opp-name').textContent  = opponent.name;
+  document.getElementById('vs-bib-pts').textContent   = fmt(oppPts);
+  document.getElementById('vs-bib-towns').textContent = oppTowns + ' villes';
+  document.getElementById('vs-bib-rank').textContent  = opponent.rank ? '#' + opponent.rank + ' mondial' : '';
+  document.getElementById('vs-bar-noc').style.width   = actPct + '%';
+  document.getElementById('vs-bar-bib').style.width   = oppPct + '%';
+  document.getElementById('versus-strip').style.display = '';
+}
+
+function renderMembres(members) {
+  const sorted = [...members].sort((a,b) => b.points - a.points);
+  const maxPts = sorted[0]?.points || 1;
+  document.getElementById('badge-membres').textContent = members.length + ' membres';
+
+  // Δ aujourd'hui = données du jour depuis member.history[]
+
+  const tbody = document.getElementById('tbody-membres');
+  tbody.innerHTML = sorted.map((m, i) => {
+    const rankCls = i === 0 ? 'top1' : i < 3 ? 'top3' : '';
+    const pct = Math.round(m.points / maxPts * 100);
+    // Δ aujourd'hui depuis member.history[] (delta quotidien API) — fonctionne pour toutes les alliances
+    const todayKey = new Date().toISOString().split('T')[0];
+    const todayEntries = (m.history||[]).filter(h => h.date === todayKey);
+    const todayPts = todayEntries.reduce((s,h)=>s+parseInt(h.points||0),0);
+    const hist = todayEntries.length > 0 ? todayPts : null;
+    const deltaHtml = hist !== null
+      ? `<span class="${hist > 0 ? 'delta-pos' : hist < 0 ? 'delta-neg' : 'delta-zero'}">${hist > 0 ? '+' : ''}${fmt(hist)}</span>`
+      : '<span class="delta-zero">—</span>';
+    // Badge inactivité uniquement dans Membres
+    const inactiveH = parseInt(m.hours_inactive || 0);
+    const inactiveBadge = inactiveH >= 48
+      ? `<span class="inactive-badge red" title="Inactif depuis ${inactiveH}h">⚠️ ${inactiveH}h</span>`
+      : inactiveH >= 12
+      ? `<span class="inactive-badge orange" title="Inactif depuis ${inactiveH}h">😴 ${inactiveH}h</span>`
+      : inactiveH > 0
+      ? `<span class="inactive-badge grey" title="Inactif depuis ${inactiveH}h">${inactiveH}h</span>`
+      : '';
+    return `<tr>
+      <td><span class="rank-badge ${rankCls}">${i+1}</span></td>
+      <td class="name-cell"><a href="noc_player.html?id=${m.id}&world=fr183" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px dotted #C9A84C" title="Voir le profil de ${m.nom}">${m.nom}</a> ${inactiveBadge}</td>
+      <td class="r pts">
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill bar-pts" style="width:${pct}%"></div></div>
+          ${fmt(m.points)}
+        </div>
+      </td>
+      <td class="r">${m.villes}</td>
+      <td class="r">${m.rang > 0 ? '#' + m.rang : '—'}</td>
+      <td class="r">${deltaHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function getOfficialDelta(key, days) {
+  // Utilise /alliance/history pour les deltas officiels par jour
+  const hist = window._allyHistory || [];
+  if (hist.length < 2) return null;
+  const today = hist[hist.length - 1];
+  const past  = days === 0
+    ? getSnapSinceToday()  // intra-journalier via snapshots
+    : hist[Math.max(0, hist.length - 1 - days)];
+  if (!past) return null;
+  const nowVal  = parseInt(today[key] || 0);
+  const pastVal = days === 0
+    ? parseInt((getSnapSinceToday()?.['total_' + key] || 0))
+    : parseInt(past[key] || 0);
+  return nowVal - pastVal;
+}
+
+function getCombatDelta(memberObj, key) {
+  // Utilise member.history[] (delta quotidien API) — même source que GrepoData
+  // key = 'atk' → history[].att, 'def' → history[].def, 'cbt' → att+def
+  const today = new Date().toISOString().split('T')[0];
+  const hist = memberObj?.history || [];
+  const todayEntries = hist.filter(h => h.date === today);
+  if (todayEntries.length === 0) return null;
+  if (key === 'atk') return todayEntries.reduce((s,h) => s+parseInt(h.att||0), 0);
+  if (key === 'def') return todayEntries.reduce((s,h) => s+parseInt(h.def||0), 0);
+  if (key === 'cbt') return todayEntries.reduce((s,h) => s+parseInt(h.att||0)+parseInt(h.def||0), 0);
+  return null;
+}
+
+function renderCombatTable(tbodyId, members, key, rankKey) {
+  const sorted = [...members].filter(m => m[key] > 0).sort((a,b) => b[key] - a[key]);
+  const max = sorted[0]?.[key] || 1;
+  const barClass = { atk:'bar-atk', def:'bar-def', cbt:'bar-cbt' }[key];
+  document.getElementById(tbodyId).innerHTML = sorted.map((m, i) => {
+    const pct   = Math.round(m[key] / max * 100);
+    const delta = getCombatDelta(m, key);
+    let deltaHtml;
+    if (delta === null) {
+      deltaHtml = '<span class="delta-cbt-zero">—</span>';
+    } else if (delta > 0) {
+      deltaHtml = `<span class="delta-cbt-pos">+${fmt(delta)}</span>`;
+    } else if (delta < 0) {
+      deltaHtml = `<span class="delta-cbt-neg">${fmt(delta)}</span>`;
+    } else {
+      deltaHtml = '<span class="delta-cbt-zero">0</span>';
+    }
+    return `<tr>
+      <td><span class="rank-badge ${i<3?'top3':''}">${i+1}</span></td>
+      <td class="name-cell"><a href="noc_player.html?id=${m.id}&world=fr183" target="_blank" style="color:inherit;text-decoration:none;border-bottom:1px dotted #C9A84C" title="Profil ${m.nom}">${m.nom}</a></td>
+      <td class="r pts">
+        <div class="bar-wrap">
+          <div class="bar-bg"><div class="bar-fill ${barClass}" style="width:${pct}%"></div></div>
+          ${fmt(m[key])}
+        </div>
+      </td>
+      <td class="r">${m[rankKey] > 0 ? '#' + m[rankKey] : '—'}</td>
+      <td class="r">${deltaHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCombat(members) {
+  renderCombatTable('tbody-atk', members, 'atk', 'atk_r');
+  renderCombatTable('tbody-def', members, 'def', 'def_r');
+  renderCombatTable('tbody-cbt', members, 'cbt', 'cbt_r');
+
+  // UNIQUEMENT /alliance/info pour att/def totaux
+  const totAtk = parseInt(window._allyInfo?.att || 0);
+  const totDef = parseInt(window._allyInfo?.def || 0);
+  const totCbt = totAtk + totDef;
+
+  document.getElementById('total-atk-val').textContent = fmt(totAtk);
+  document.getElementById('total-def-val').textContent = fmt(totDef);
+  document.getElementById('total-cbt-val').textContent = fmt(totCbt);
+  document.getElementById('total-cbt-sub').textContent = fmt(totAtk) + ' + ' + fmt(totDef);
+
+  // Meilleur rang individuel atk/def — déclaré AVANT le bloc delta
+  const bestAtk = members.filter(m => m.atk_r).sort((a,b) => a.atk_r - b.atk_r)[0];
+  const bestDef = members.filter(m => m.def_r).sort((a,b) => a.def_r - b.def_r)[0];
+
+  // Deltas officiels depuis /alliance/history
+  const fmtD = (v) => v > 0 ? '+' + fmt(v) : v < 0 ? fmt(v) : String(v);
+  const hist  = window._allyHistory || [];
+  if (hist.length >= 2) {
+    const today = hist[hist.length - 1];
+    const yest  = hist[hist.length - 2];
+    const dAtk  = parseInt(today.att||0) - parseInt(yest.att||0);
+    const dDef  = parseInt(today.def||0) - parseInt(yest.def||0);
+    const dCbt  = dAtk + dDef;
+
+    const atkRankEl = document.getElementById('total-atk-rank');
+    const defRankEl = document.getElementById('total-def-rank');
+    const cbtSubEl  = document.getElementById('total-cbt-sub');
+
+    if (atkRankEl) atkRankEl.innerHTML =
+      (bestAtk ? 'Meilleur : ' + bestAtk.nom + ' #' + bestAtk.atk_r : '') +
+      (dAtk !== 0 ? `<br><span style="color:#e74c3c;font-weight:600">${fmtD(dAtk)} hier→auj.</span>` : '');
+    if (defRankEl) defRankEl.innerHTML =
+      (bestDef ? 'Meilleur : ' + bestDef.nom + ' #' + bestDef.def_r : '') +
+      (dDef !== 0 ? `<br><span style="color:#2E86AB;font-weight:600">${fmtD(dDef)} hier→auj.</span>` : '');
+    if (cbtSubEl) cbtSubEl.innerHTML =
+      fmt(totAtk) + ' + ' + fmt(totDef) +
+      (dCbt !== 0 ? `<br><span style="color:var(--gold);font-weight:600">${fmtD(dCbt)} hier→auj.</span>` : '');
+  }
+  document.getElementById('total-atk-rank').textContent = bestAtk ? 'Meilleur : ' + bestAtk.nom + ' #' + bestAtk.atk_r : '';
+  document.getElementById('total-def-rank').textContent = bestDef ? 'Meilleur : ' + bestDef.nom + ' #' + bestDef.def_r : '';
+}
+
+function renderTop5List(elId, members, key, label) {
+  const sorted = [...members].filter(m => m[key] > 0).sort((a,b) => b[key]-a[key]).slice(0,5);
+  document.getElementById(elId).innerHTML = sorted.map((m,i) =>
+    `<li>
+      <span class="top5-medal">${MEDALS[i]}</span>
+      <span class="top5-name">${m.nom}</span>
+      <span class="top5-val">${fmt(m[key])} ${label}</span>
+    </li>`
+  ).join('');
+}
+
+function renderTop5(members) {
+  renderTop5List('top5-atk',   members, 'atk',    'pts');
+  renderTop5List('top5-def',   members, 'def',    'pts');
+  renderTop5List('top5-cbt',   members, 'cbt',    'pts');
+  renderTop5List('top5-pts',   members, 'points', 'pts');
+  renderTop5List('top5-villes',members, 'villes', '🏙️');
+}
+
+function getSnapSinceToday() {
+  // Retourne le snap le plus vieux depuis 00h00 aujourd'hui
+  // ou le plus vieux snap dispo si rien depuis minuit
+  if (historyData.length === 0) return null;
+  const now = historyData[historyData.length - 1];
+  const midnight = new Date(now.ts);
+  midnight.setHours(0, 0, 0, 0);
+  const midnightTs = midnight.getTime();
+  // Snaps d'aujourd'hui
+  const todaySnaps = historyData.filter(h => h.ts >= midnightTs);
+  if (todaySnaps.length >= 2) return todaySnaps[0]; // premier snap d'aujourd'hui
+  // Pas assez de snaps aujourd'hui → prend le plus vieux dispo
+  return historyData.length >= 2 ? historyData[0] : null;
+}
+
+function getHistDelta(nom, days) {
+  if (historyData.length < 2) return null;
+  const nowSnap = historyData[historyData.length - 1];
+
+  let pastSnap;
+  if (days <= 1) {
+    // Δ 24H dans membres = depuis 00h00 aujourd'hui (ou plus vieux snap dispo)
+    pastSnap = getSnapSinceToday();
+  } else {
+    // Δ 7j etc. = snap il y a X jours réels
+    const cutoff = nowSnap.ts - days * 24 * 3600 * 1000;
+    const candidates = historyData.slice(0, -1).filter(h => h.ts <= cutoff);
+    pastSnap = candidates.length > 0
+      ? candidates[candidates.length - 1]
+      : historyData[0];
+  }
+
+  if (!pastSnap || pastSnap.ts === nowSnap.ts) return null;
+  const nowM  = nowSnap.members?.find(m => m.nom === nom);
+  const pastM = pastSnap.members?.find(m => m.nom === nom);
+  if (!nowM || !pastM) return null;
+  return nowM.pts - pastM.pts;
+}
+
+function renderHistorique() {
+  // ══ SOURCE UNIQUE : /alliance/history ══
+  // - pts/att/def par jour = totaux cumulés officiels (comme GrepoData)
+  // - On prend les 10 derniers jours avec att > 0
+  // - On ajoute aujourd'hui depuis _allyInfo si pas encore dans history
+
+  const allyHist = (window._allyHistory || [])
+    .sort((a,b) => a.date.localeCompare(b.date))
+    .filter(h => parseInt(h.att) > 0);  // exclut les jours sans données
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayInHist = allyHist.some(h => h.date === todayStr);
+
+  // Construit les séries pour le graphe att/def (10 derniers jours + aujourd'hui)
+  const recentHist = allyHist.slice(-10);
+  let combatLabels = recentHist.map(h => h.date.slice(5));
+  let atkData      = recentHist.map(h => parseInt(h.att));
+  let defData      = recentHist.map(h => parseInt(h.def));
+
+  // Ajoute aujourd'hui depuis _allyInfo (pas encore dans history)
+  if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && parseInt(window._allyInfo?.att) > 0) {
+    combatLabels.push(todayStr.slice(5));
+    atkData.push(parseInt(window._allyInfo.att));
+    defData.push(parseInt(window._allyInfo.def));
+  }
+
+  // Graphe points : 100% depuis /alliance/history (même source que att/def)
+  // + aujourd'hui depuis _allyInfo si pas encore dans history
+  let ptLabels, ptData;
+  if (allyHist.length >= 1) {
+    const pts10 = allyHist.slice(-10);
+    ptLabels = pts10.map(h => h.date.slice(5));
+    ptData   = pts10.map(h => parseInt(h.points));
+    if (!todayInHist && window._allyInfoId === ACTIVE_ALLY.id && window._allyInfo?.points) {
+      ptLabels.push(todayStr.slice(5));
+      ptData.push(parseInt(window._allyInfo.points));
+    }
+  } else {
+    ['chart-points','chart-combat'].forEach(id => {
+      const cv = document.getElementById(id); if (!cv) return;
+      const cx = cv.getContext('2d');
+      cx.clearRect(0,0,cv.width,cv.height);
+      cx.fillStyle='#7A8099'; cx.font='13px Inter,sans-serif'; cx.textAlign='center';
+      cx.fillText('Historique insuffisant 📅', cv.width/2, 110);
+    });
+    return;
+  }
+
+  // ── Graphe Points ──
+  const ctxPts = document.getElementById('chart-points').getContext('2d');
+  if (window._chartPts) window._chartPts.destroy();
+  window._chartPts = new Chart(ctxPts, {
+    type: 'line',
+    data: { labels: ptLabels, datasets: [{
+      label: 'Points ' + ACTIVE_ALLY.name,
+      data: ptData,
+      borderColor: '#C9A84C', backgroundColor: 'rgba(201,168,76,0.1)',
+      fill: true, tension: 0.3, pointRadius: 2,
+    }]},
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color:'#C9A84C', font:{size:11} } } },
+      scales: {
+        x: { ticks: { color:'#7A8099', font:{size:9}, maxRotation:45 }, grid:{color:'#222737'} },
+        y: { ticks: { color:'#7A8099', font:{size:10}, callback: v=>fmt(v) }, grid:{color:'#222737'} }
+      }
+    }
+  });
+
+  // ── Graphe Attaque + Défense ──
+  const ctxCbt = document.getElementById('chart-combat').getContext('2d');
+  if (window._chartCbt) window._chartCbt.destroy();
+  if (combatLabels.length < 2) {
+    ctxCbt.clearRect(0,0,ctxCbt.canvas.width,ctxCbt.canvas.height);
+    ctxCbt.fillStyle='#7A8099'; ctxCbt.font='13px Inter,sans-serif'; ctxCbt.textAlign='center';
+    ctxCbt.fillText('Pas encore de données att/def disponibles', ctxCbt.canvas.width/2, 110);
+  } else {
+    window._chartCbt = new Chart(ctxCbt, {
+      type: 'line',
+      data: { labels: combatLabels, datasets: [
+        { label:'Attaque', data:atkData, borderColor:'#C0392B', backgroundColor:'rgba(192,57,43,0.15)', fill:true, tension:0.3, pointRadius:3 },
+        { label:'Défense', data:defData, borderColor:'#2E86AB', backgroundColor:'rgba(46,134,171,0.1)',  fill:true, tension:0.3, pointRadius:3 },
+      ]},
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color:'#ccc', font:{size:11} } } },
+        scales: {
+          x: { ticks: { color:'#7A8099', font:{size:10} }, grid:{color:'#222737'} },
+          y: { ticks: { color:'#7A8099', font:{size:10}, callback: v=>fmt(v) }, grid:{color:'#222737'} }
+        }
+      }
+    });
+  }
+
+  // ── Tableau progression individuelle (depuis member.history[] = deltas quotidiens) ──
+  const curr   = historyData[historyData.length - 1];
+  const currTs = curr?.ts || Date.now();
+  const todayDate  = new Date().toISOString().split('T')[0];
+  const date7j     = new Date(Date.now() - 7*86400000).toISOString().split('T')[0];
+
+  // Δ aujourd'hui = somme des points dans member.history pour la date d'aujourd'hui
+  // Δ 7 jours = somme des points dans member.history depuis 7 jours
+  function getMemberDelta(member, fromDate) {
+    if (!Array.isArray(member.history) || member.history.length === 0) return null;
+    const relevant = member.history.filter(h => h.date >= fromDate);
+    if (relevant.length === 0) return null;
+    return relevant.reduce((s,h) => s + parseInt(h.points||0), 0);
+  }
+
+  const sortedM = [...members].sort((a,b) => b.points - a.points);
+  const tbody   = document.getElementById('tbody-hist');
+  if (!tbody) return;
+
+  tbody.innerHTML = sortedM.map(m => {
+    const d1 = getMemberDelta(m, todayDate);
+    const d7 = getMemberDelta(m, date7j);
+    const fmtD = (v) => v === null ? '—' : v > 0 ? `<span class="delta-pos">+${fmt(v)}</span>` : `<span class="delta-neg">${fmt(v)}</span>`;
+    // Sparkline tendance (7 derniers jours)
+    const memberHist = [...(m.history||[])].sort((a,b)=>a.date.localeCompare(b.date)).slice(-7);
+    return `<tr>
+      <td>${m.nom}</td>
+      <td class="r">${fmt(m.points)}</td>
+      <td class="r">${fmtD(d1)}</td>
+      <td class="r">${fmtD(d7)}</td>
+    </tr>`;
+  }).join('');
+
+  // Badge snapshots — SUPPRIMÉ (inutile)
+  const badge = document.getElementById('hist-info');
+  if (badge) badge.style.display = 'none';
+}
+
+
+function fmt_k(n) {
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000)    return (n/1000).toFixed(0) + 'k';
+  return String(n);
+}
+
+async function renderAllyDropdown(query) {
+  const dropdown = document.getElementById('ally-dropdown');
+  if (!query && ALL_ALLIANCES.length === 0) { dropdown.classList.remove('open'); return; }
+
+  const q = query.toLowerCase().trim();
+
+  // Filtre local d'abord (top 30 déjà chargés)
+  let filtered = q
+    ? ALL_ALLIANCES.filter(a => a.name.toLowerCase().includes(q)).slice(0, 20)
+    : ALL_ALLIANCES.slice(0, 20);
+
+  // Si moins de 5 résultats locaux ET query >= 3 chars → cherche via l'API search
+  if (q.length >= 3 && filtered.length < 5) {
+    try {
+      const res = await fetch(
+        `https://api.grepodata.com/search?query=${encodeURIComponent(q)}&preferred_server=${WORLD}`
+      ).then(r => r.json());
+      const apiResults = (res?.results || [])
+        .filter(a => a.world === WORLD)  // seulement fr183
+        .map(a => ({
+          id    : a.id,
+          name  : a.name,
+          rank  : parseInt(a.rank || 999),
+          points: parseInt(a.points || 0),
+          towns : parseInt(a.towns || 0),
+        }));
+      // Fusionne avec les résultats locaux (dédoublonne par id)
+      const seen = new Set(filtered.map(a => a.id));
+      apiResults.forEach(a => { if (!seen.has(a.id)) { filtered.push(a); seen.add(a.id); } });
+      filtered = filtered.slice(0, 20);
+    } catch(e) { /* silencieux */ }
+  }
+
+  if (filtered.length === 0) { dropdown.classList.remove('open'); return; }
+
+  // Stocke les alliances filtrées pour accès par index (évite les problèmes d'apostrophes)
+  window._dropdownAlliances = filtered;
+  dropdown.innerHTML = filtered.map((a, idx) => `
+    <div class="ally-item ${a.id == ACTIVE_ALLY.id ? 'active' : ''}"
+         onclick="selectAllianceByIndex(${idx})">
+      <div>
+        <div class="ally-item-name">${a.name}</div>
+        <div class="ally-item-pts">${fmt_k(a.points)} pts · ${a.towns} villes</div>
+      </div>
+      <div class="ally-item-rank">#${a.rank}</div>
+    </div>
+  `).join('');
+
+  dropdown.classList.add('open');
+}
+
+function selectAllianceByIndex(idx) {
+  const a = window._dropdownAlliances?.[idx];
+  if (a) selectAlliance(a.id, a.name);
+}
+
+function selectAlliance(id, name) {
+  ACTIVE_ALLY = { id, name };
+  document.getElementById('ally-search').value = '';
+  document.getElementById('ally-dropdown').classList.remove('open');
+  const badge = document.getElementById('ally-badge');
+  badge.textContent = name.length > 18 ? name.slice(0, 16) + '…' : name;
+
+  // Met à jour le titre
+  document.querySelector('h1').textContent = name;
+
+  // Détruit les anciens graphes pour éviter l'affichage des données précédentes
+  if (window._chartPts) { window._chartPts.destroy(); window._chartPts = null; }
+  if (window._chartCbt) { window._chartCbt.destroy(); window._chartCbt = null; }
+
+  // Vide l'historique et _allyInfo pour éviter données d'une autre alliance
+  historyData = [];
+  window._allyInfo   = null;
+  window._allyInfoId = null;
+  window._allyHistory = [];
+  _conquestCache = {};
+  loadHistoryData();
+  // Recharge les données
+  loadData();
+}
+
+// Événements du champ de recherche
+
+
+
+// ─── CONQUÊTES ───
+
+
+// ─── RAPPORT DISCORD ───
+async function generateDiscordReport() {
+  const btn = document.querySelector('.btn-discord');
+  if (btn) { btn.textContent = '⏳ Génération...'; btn.disabled = true; }
+
+  try {
+    const today    = new Date().toISOString().split('T')[0];
+    const allyName = ACTIVE_ALLY.name;
+    const allyId   = ACTIVE_ALLY.id;
+
+    // Données de base depuis ce qui est déjà chargé
+    const info = window._allyInfo || {};
+    const hist = (window._allyHistory || []).sort((a,b)=>a.date.localeCompare(b.date));
+    const last  = hist[hist.length-1];
+    const prev  = hist[hist.length-2];
+    const j7    = hist[hist.length-8];
+
+    // Scoreboard du jour (conquêtes/pertes)
+    let sbData = {};
+    try {
+      sbData = await apiFetch(`/scoreboard/alliance?world=${WORLD}&id=${allyId}`);
+    } catch(e) {}
+    const conToday = (sbData?.con||[]).find(a=>a.i==allyId)?.s || 0;
+    const losToday = (sbData?.los||[]).find(a=>a.i==allyId)?.s || 0;
+    const attToday = (sbData?.att||[]).find(a=>a.i==allyId)?.s || 0;
+    const defToday = (sbData?.def||[]).find(a=>a.i==allyId)?.s || 0;
+
+    // Rang dans le scoreboard du jour
+    const attRankToday = (sbData?.att||[]).findIndex(a=>a.i==allyId) + 1;
+    const conRankToday = (sbData?.con||[]).findIndex(a=>a.i==allyId) + 1;
+
+    // Deltas depuis history
+    const dPts  = last && prev ? last.points - prev.points : 0;
+    const dAtt  = last && prev ? last.att    - prev.att    : 0;
+    const dDef  = last && prev ? last.def    - prev.def    : 0;
+    const dPts7 = last && j7   ? last.points - j7.points   : 0;
+
+    // Top 3 attaquants du jour
+    const topAtk = [...members]
+      .filter(m => {
+        const todayH = (m.history||[]).filter(h=>h.date===today);
+        m._todayAtk = todayH.reduce((s,h)=>s+parseInt(h.att||0),0);
+        return m._todayAtk > 0;
+      })
+      .sort((a,b) => b._todayAtk - a._todayAtk)
+      .slice(0,3);
+
+    // Top 3 défenseurs du jour
+    const topDef = [...members]
+      .filter(m => {
+        const todayH = (m.history||[]).filter(h=>h.date===today);
+        m._todayDef = todayH.reduce((s,h)=>s+parseInt(h.def||0),0);
+        return m._todayDef > 0;
+      })
+      .sort((a,b) => b._todayDef - a._todayDef)
+      .slice(0,3);
+
+    // Membres inactifs (> 24h)
+    const inactifs = [...members]
+      .filter(m => parseInt(m.hours_inactive||0) >= 24)
+      .sort((a,b) => parseInt(b.hours_inactive||0) - parseInt(a.hours_inactive||0));
+
+    // Membres avec perte de points (villes perdues)
+    const losers = [...members]
+      .filter(m => {
+        const todayPts = (m.history||[]).filter(h=>h.date===today).reduce((s,h)=>s+parseInt(h.points||0),0);
+        m._todayPts = todayPts;
+        return todayPts < 0;
+      })
+      .sort((a,b) => a._todayPts - b._todayPts);
+
+    // Formatage des nombres
+    const fK = v => Math.abs(v) >= 1000 ? (v/1000).toFixed(1)+'k' : String(v);
+    const sign = v => v > 0 ? '+'+fK(v) : fK(v);
+
+    // Date lisible
+    const dateStr = new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+
+    // ── Construction du message Discord ──
+    const lines = [];
+    lines.push(`## ⚔️ Rapport ${allyName} — ${dateStr}`);
+    lines.push('');
+
+    // KPIs généraux
+    lines.push('**📊 Points alliance**');
+    lines.push(`> Total : **${fmt(info.points||last?.points||0)}** pts (#${info.rank||'?'} mondial)`);
+    if (dPts) lines.push(`> Hier→Aujourd'hui : **${sign(dPts)}** pts`);
+    if (dPts7) lines.push(`> Cette semaine : **${sign(dPts7)}** pts`);
+    lines.push('');
+
+    // Combat du jour
+    lines.push("**⚔️ Combat aujourd'hui**");
+    if (attToday) lines.push(`> Attaque : **${fK(attToday)}** pts${attRankToday ? ' (#'+attRankToday+' mondial)' : ''}`);
+    if (defToday) lines.push(`> Défense : **${fK(defToday)}** pts`);
+    lines.push('');
+
+    // Conquêtes/Pertes
+    lines.push('**🏰 Villes**');
+    lines.push(`> Prises : **${conToday}** | Perdues : **${losToday}** | Bilan net : **${conToday-losToday >= 0 ? '+' : ''}${conToday-losToday}**`);
+    if (losers.length > 0) {
+      lines.push(`> ⚠️ Joueurs ayant perdu des villes : ${losers.map(m=>`**${m.nom}** (${fK(m._todayPts)} pts)`).join(', ')}`);
+    }
+    lines.push('');
+
+    // Top attaquants
+    if (topAtk.length > 0) {
+      lines.push('**🔴 Top attaquants du jour**');
+      topAtk.forEach((m,i) => lines.push(`> ${['🥇','🥈','🥉'][i]} **${m.nom}** : +${fK(m._todayAtk)} pts atk`));
+      lines.push('');
+    }
+
+    // Top défenseurs
+    if (topDef.length > 0) {
+      lines.push('**🔵 Top défenseurs du jour**');
+      topDef.forEach((m,i) => lines.push(`> ${['🥇','🥈','🥉'][i]} **${m.nom}** : +${fK(m._todayDef)} pts déf`));
+      lines.push('');
+    }
+
+    // Inactifs
+    if (inactifs.length > 0) {
+      lines.push('**😴 Membres inactifs**');
+      inactifs.forEach(m => {
+        const h = parseInt(m.hours_inactive||0);
+        const badge = h >= 48 ? '⚠️' : '😴';
+        lines.push(`> ${badge} **${m.nom}** — inactif depuis **${h}h**`);
+      });
+      lines.push('');
+    }
+
+    lines.push(`*Généré automatiquement depuis le dashboard NOC · ${new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}*`);
+
+    const rapport = lines.join('\n');
+
+    // Copie dans le presse-papier
+    await navigator.clipboard.writeText(rapport);
+
+    // Toast
+    const toast = document.getElementById('discord-toast');
+    if (toast) {
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+  } catch(e) {
+    console.error('Rapport Discord:', e);
+    alert('Erreur lors de la génération du rapport : ' + e.message);
+  } finally {
+    if (btn) { btn.textContent = '📋 Discord'; btn.disabled = false; }
+  }
+}
+
+
+// ─── CONQUÊTES ───
+let _conquestCache = {};  // cache par alliance id
+
+async function renderConquetes() {
+  const tbody = document.getElementById('tbody-conquetes');
+  const badge = document.getElementById('badge-conquetes');
+  if (!tbody) return;
+
+  const allyId = ACTIVE_ALLY.id;
+  const perPage = parseInt(document.getElementById('cq-perpage')?.value || 30);
+
+  // Filtre actifs
+  const showFriendly = document.getElementById('cq-friendly')?.checked ?? true;
+  const showEnemy    = document.getElementById('cq-enemy')?.checked ?? true;
+  const showInternal = document.getElementById('cq-internal')?.checked ?? true;
+
+  // Charge TOUTES les conquêtes si pas encore en cache
+  if (!_conquestCache[allyId]) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-dim)">⏳ Chargement de toutes les conquêtes...</td></tr>';
+    try {
+      // Charge la première page pour connaître le total
+      const first = await fetch(
+        `https://api.grepodata.com/conquest?type=alliance&world=${WORLD}&id=${allyId}&from=0&size=50&tfriendly=true&tinternal=true&tenemy=true&date=_&city=_&old_owner=_&new_owner=_`
+      ).then(r => r.json());
+      const total = first?.count || 0;
+      let all = first?.conq || [];
+
+      // Charge les pages suivantes en parallèle
+      if (total > 50) {
+        const offsets = [];
+        for (let off = 50; off < total; off += 50) offsets.push(off);
+        const pages = await Promise.all(
+          offsets.map(off =>
+            fetch(`https://api.grepodata.com/conquest?type=alliance&world=${WORLD}&id=${allyId}&from=${off}&size=50&tfriendly=true&tinternal=true&tenemy=true&date=_&city=_&old_owner=_&new_owner=_`)
+              .then(r => r.json()).then(d => d?.conq || []).catch(() => [])
+          )
+        );
+        all = [all, ...pages].flat();
+      }
+      _conquestCache[allyId] = all;
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#e74c3c">Erreur de chargement</td></tr>';
+      return;
+    }
+  }
+
+  const all = _conquestCache[allyId];
+
+  // Filtre
+  const filtered = all.filter(c => {
+    if (c.type === 'friendly' && !showFriendly) return false;
+    if (c.type === 'enemy'    && !showEnemy)    return false;
+    if (c.type === 'internal' && !showInternal) return false;
+    return true;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(filtered.length / perPage);
+  if (!window._cqPage || window._cqPage > totalPages) window._cqPage = 1;
+  const page     = window._cqPage;
+  const pageStart = (page - 1) * perPage;
+  const pageEnd   = Math.min(pageStart + perPage, filtered.length);
+  const pageItems = filtered.slice(pageStart, pageEnd);
+
+  badge.textContent = `${filtered.length} conquêtes (${all.length} total)`;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-dim)">Aucune conquête pour ce filtre</td></tr>';
+    document.getElementById('cq-pagination').innerHTML = '';
+    return;
+  }
+
+  // Rendu des lignes
+  tbody.innerHTML = pageItems.map(c => {
+    const date = new Date(c.time + 'Z').toLocaleString('fr-FR', {
+      day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'
+    });
+    const isGain    = c.n_a_id === allyId;
+    const typeCls   = c.type === 'enemy'    ? (isGain ? 'color:#27ae60' : 'color:#e74c3c')
+                    : c.type === 'friendly' ? 'color:#f39c12'
+                    : 'color:#7A8099';
+    const typeLabel = c.type === 'enemy'    ? (isGain ? '⚔️ Prise'  : '💀 Perdue')
+                    : c.type === 'friendly' ? '🤝 Friendly'
+                    : '🔄 Interne';
+    return `<tr>
+      <td style="font-size:11px;white-space:nowrap">${date}</td>
+      <td style="font-weight:600">${c.town_name || '—'}</td>
+      <td class="r" style="color:var(--gold)">${c.points ? fmt(c.points) : '—'}</td>
+      <td>${c.n_p_name || '—'}</td>
+      <td style="color:var(--text-dim)">${c.o_p_name || '—'}</td>
+      <td style="${typeCls};font-weight:600">${typeLabel}</td>
+    </tr>`;
+  }).join('');
+
+  // Pagination controls
+  const pag = document.getElementById('cq-pagination');
+  if (!pag) return;
+
+  let pagHtml = `<span style="color:var(--text-dim);font-size:12px">${pageStart+1}-${pageEnd} sur ${filtered.length}</span> `;
+
+  // Bouton précédent
+  pagHtml += `<button class="pag-btn" onclick="window._cqPage=Math.max(1,${page}-1);renderConquetes()" ${page<=1?'disabled':''}>◀</button> `;
+
+  // Numéros de page (max 7 affichés)
+  const rangeStart = Math.max(1, Math.min(page-3, totalPages-6));
+  const rangeEnd   = Math.min(totalPages, rangeStart+6);
+  if (rangeStart > 1) pagHtml += `<button class="pag-btn" onclick="window._cqPage=1;renderConquetes()">1</button> <span style="color:var(--text-dim)">…</span> `;
+  for (let p = rangeStart; p <= rangeEnd; p++) {
+    pagHtml += `<button class="pag-btn ${p===page?'active':''}" onclick="window._cqPage=${p};renderConquetes()">${p}</button> `;
+  }
+  if (rangeEnd < totalPages) pagHtml += `<span style="color:var(--text-dim)">…</span> <button class="pag-btn" onclick="window._cqPage=${totalPages};renderConquetes()">${totalPages}</button> `;
+
+  // Bouton suivant
+  pagHtml += `<button class="pag-btn" onclick="window._cqPage=Math.min(${totalPages},${page}+1);renderConquetes()" ${page>=totalPages?'disabled':''}>▶</button>`;
+  pag.innerHTML = pagHtml;
+}
+
+// ─── ALLIANCE SWITCHER : charge toutes les alliances ───
+async function loadAllAlliances() {
+  try {
+    // L'API /ranking/alliance retourne toujours les 30 mêmes alliances
+    // (pagination non fonctionnelle) — on charge une seule fois et on dédoublonne par id
+    const data = await apiFetch(`/ranking/alliance?world=${WORLD}`);
+    const raw  = data?.results || (Array.isArray(data) ? data : []);
+    const seen = new Set();
+    ALL_ALLIANCES = raw
+      .map(a => ({
+        id    : a.id || a.alliance_id,
+        name  : a.name || a.alliance_name || '',
+        rank  : parseInt(a.rank || 0),
+        points: parseInt(a.points || 0),
+        towns : parseInt(a.towns || 0),
+      }))
+      .filter(a => a.name && a.id && !seen.has(a.id) && seen.add(a.id))
+      .sort((a,b) => a.rank - b.rank);
+    console.log(`[NOC] ${ALL_ALLIANCES.length} alliances chargées`);
+  } catch(e) {
+    console.warn('[NOC] loadAllAlliances:', e);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input    = document.getElementById('ally-search');
+  const dropdown = document.getElementById('ally-dropdown');
+
+  input.addEventListener('input', () => renderAllyDropdown(input.value));
+  input.addEventListener('focus', () => {
+    if (ALL_ALLIANCES.length > 0) renderAllyDropdown(input.value);
+  });
+
+  // Ferme le dropdown si clic ailleurs
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.ally-search-wrap')) {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  // Onglet actif par défaut
+  window._activeTab = 'membres';
+  // Charge les alliances puis les données
+  loadAllAlliances().then(() => loadData()).then(() => startAutoRefresh());
+});
+</script>
+<div id="discord-toast">✅ Rapport copié dans le presse-papier !</div>
+</body>
+</html>
